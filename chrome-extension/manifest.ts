@@ -4,19 +4,12 @@ import type { ManifestType } from '@extension/shared';
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 /**
- * @prop default_locale
- * if you want to support multiple languages, you can use the following reference
- * https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Internationalization
- *
- * @prop browser_specific_settings
- * Must be unique to your extension to upload to addons.mozilla.org
- * (you can delete if you only want a chrome extension)
- *
- * @prop permissions
- * Firefox doesn't support sidePanel (It will be deleted in manifest parser)
- *
- * @prop content_scripts
- * css: ['content.css'], // public folder
+ * Minimal manifest for a DevTools-only extension:
+ * - No content_scripts
+ * - No popup/action
+ * - No options page or new tab override
+ * - Only storage + debugger permissions
+ * - DevTools panel defined by devtools_page
  */
 const manifest = {
   manifest_version: 3,
@@ -30,55 +23,34 @@ const manifest = {
   },
   version: packageJson.version,
   description: '__MSG_extensionDescription__',
+
+  // Needed so you can capture/replay arbitrary requests
   host_permissions: ['<all_urls>'],
-  permissions: ['storage', 'scripting', 'tabs', 'notifications', 'sidePanel'],
-  options_page: 'options/index.html',
+
+  // Keep only what's required
+  permissions: ['storage', 'debugger'],
+
+  // Background script (optional but useful if you plan to attach debugger, etc.)
   background: {
     service_worker: 'background.js',
     type: 'module',
   },
-  action: {
-    default_popup: 'popup/index.html',
-    default_icon: 'icon-34.png',
-  },
-  chrome_url_overrides: {
-    newtab: 'new-tab/index.html',
-  },
+
+  // This is the heart of a DevTools extension
+  devtools_page: 'devtools/index.html',
+
+  // Icons still useful for extension listing
   icons: {
     '128': 'icon-128.png',
   },
-  content_scripts: [
-    {
-      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-      js: ['content/all.iife.js'],
-    },
-    {
-      matches: ['https://example.com/*'],
-      js: ['content/example.iife.js'],
-    },
-    {
-      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-      js: ['content-ui/all.iife.js'],
-    },
-    {
-      matches: ['https://example.com/*'],
-      js: ['content-ui/example.iife.js'],
-    },
-    {
-      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-      css: ['content.css'],
-    },
-  ],
-  devtools_page: 'devtools/index.html',
+
+  // Only keep this if your devtools page needs to load bundled assets directly
   web_accessible_resources: [
     {
-      resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'icon-34.png'],
+      resources: ['*.js', '*.css', '*.svg', 'icon-128.png'],
       matches: ['*://*/*'],
     },
   ],
-  side_panel: {
-    default_path: 'side-panel/index.html',
-  },
 } satisfies ManifestType;
 
 export default manifest;
