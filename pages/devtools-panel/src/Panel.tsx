@@ -2,8 +2,17 @@ import '@src/Panel.css';
 import { withErrorBoundary, withSuspense } from '@extension/shared';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 import CodeEditor from './components/CodeEditor';
+import { useState, useCallback } from 'react';
 
 const Panel = () => {
+  const [request, setRequest] = useState('const jehu = "p";');
+  const onChangeRequest = useCallback((val: string) => {
+    setRequest(val);
+  }, []);
+  const [response, setResponse] = useState('{"message": "Hello World", "status": "success", "data": {"user": "jehu", "timestamp": "2024-01-01T00:00:00Z"}}');
+  const onChangeResponse = useCallback((val: string) => {
+    setResponse(val);
+  }, []);
   return (
     <div className="h-screen w-screen max-h-screen max-w-screen flex flex-col">
       <div className="flex flex-col rounded-lg border border-gray-200 shadow-sm flex-1 min-h-0">
@@ -35,8 +44,8 @@ const Panel = () => {
               <div className="mb-2 text-sm font-medium text-gray-700">Request</div>
               <div className="flex-1 min-h-0" style={{ height: 'calc(100% - 30px)' }}>
                 <CodeEditor
-                  value={'const jehu = "p";'}
-                  onChange={() => { }}
+                  value={request}
+                  onChange={onChangeRequest}
                   language={'javascript'}
                   onCtrlEnter={() => { }}
                   height="100%"
@@ -49,14 +58,13 @@ const Panel = () => {
               <div className="mb-2 text-sm font-medium text-gray-700">Response</div>
               <div className="flex-1 min-h-0" style={{ height: 'calc(100% - 30px)' }}>
                 <CodeEditor
-                  value={'console.log(jehu);'}
-                  onChange={() => {
-
-                  }}
-                  language={'javascript'}
-                  readOnly={true}
+                  value={response}
+                  onChange={onChangeResponse}
+                  language={'json'}
+                  readOnly={false}
                   height="100%"
                   className="h-full"
+                  formatJson={true}
                 />
               </div>
             </div>
