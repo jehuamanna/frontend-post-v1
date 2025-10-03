@@ -28,26 +28,26 @@ const Panel = () => {
         </div>
 
         {/* Editors Area */}
-        <div className="flex-1 min-h-0 p-3">
+        <div className="flex-1 min-h-0 p-3" style={{ height: 'calc(100vh - 120px)' }}>
           <div className="grid grid-cols-2 gap-3 h-full">
             {/* Left monaco editor */}
             <div className="flex flex-col h-full min-h-0">
               <div className="mb-2 text-sm font-medium text-gray-700">Request</div>
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0" style={{ height: 'calc(100% - 30px)' }}>
                 <CodeEditor
                   value={'const jehu = "p";'}
                   onChange={() => { }}
                   language={'javascript'}
                   onCtrlEnter={() => { }}
                   height="100%"
-                  className="flex-1 min-h-0"
+                  className="h-full"
                 />
               </div>
             </div>
             {/* Right monaco editor */}
             <div className="flex flex-col h-full min-h-0">
               <div className="mb-2 text-sm font-medium text-gray-700">Response</div>
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0" style={{ height: 'calc(100% - 30px)' }}>
                 <CodeEditor
                   value={'console.log(jehu);'}
                   onChange={() => {
@@ -56,7 +56,7 @@ const Panel = () => {
                   language={'javascript'}
                   readOnly={true}
                   height="100%"
-                  className="flex-1 min-h-0"
+                  className="h-full"
                 />
               </div>
             </div>
