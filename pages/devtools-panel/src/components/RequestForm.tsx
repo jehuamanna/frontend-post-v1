@@ -39,27 +39,27 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   useEffect(() => {
     const headerEntries = Object.entries(request.headers || {});
 
-    // Always sync with the actual request headers
+    // Force update headers state regardless of current state
     if (headerEntries.length > 0) {
-      setHeaders([...headerEntries]); // Force new array
+      setHeaders([...headerEntries]);
     } else {
-      // When completely empty, show default empty state
+      // When completely empty, always reset to default empty state
       setHeaders([['', '']]);
     }
-  }, [request.headers]);
+  }, [JSON.stringify(request.headers)]); // Use JSON.stringify to detect deep changes
 
   // Sync query params with request changes
   useEffect(() => {
     const paramEntries = Object.entries(request.params || {});
 
-    // Always update params to ensure proper sync
+    // Force update params state
     if (paramEntries.length > 0) {
-      setQueryParams([...paramEntries]); // Force new array
+      setQueryParams([...paramEntries]);
     } else {
       // Reset to default when params are cleared
       setQueryParams([['', '']]);
     }
-  }, [request.params]);
+  }, [JSON.stringify(request.params)]); // Use JSON.stringify to detect deep changes
 
   const handleMethodChange = useCallback((method: HttpMethod) => {
     onRequestChange({ method });

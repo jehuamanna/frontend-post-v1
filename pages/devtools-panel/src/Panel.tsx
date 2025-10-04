@@ -15,7 +15,8 @@ const Panel = () => {
     isOpen: boolean;
     initialValue?: string;
   }>({ isOpen: false });
-  
+  const [clearCounter, setClearCounter] = useState(0);
+
   const {
     tabs,
     activeTab,
@@ -27,6 +28,7 @@ const Panel = () => {
     updateRequest,
     updateTab,
     reorderTabs,
+    clearRequest,
   } = useTabs();
 
   const handleContentTabClick = useCallback((tab: 'request' | 'response') => {
@@ -61,11 +63,11 @@ const Panel = () => {
           commandType
         }
       });
-      
+
       // If we successfully parsed the request, update the request data
       if (parsedRequest) {
         updateRequest(activeTabId, parsedRequest);
-        
+
         // Update tab name if URL is available
         if (parsedRequest.url) {
           const urlParts = parsedRequest.url.split('/');
@@ -81,27 +83,13 @@ const Panel = () => {
 
   const handleClear = useCallback(() => {
     if (activeTabId) {
-      // Complete clear - reset all fields to defaults
-      const clearData = {
-        url: '',
-        method: 'GET' as const,
-        headers: {}, // Empty headers object
-        body: '',
-        params: {}
-      };
-      updateRequest(activeTabId, clearData);
+      // Use the dedicated clearRequest action from reducer
+      clearRequest(activeTabId);
       
-      // Clear raw command and reset tab name
-      updateTab(activeTabId, {
-        name: 'New Request GET',
-        data: {
-          ...activeTab!.data,
-          rawCommand: '',
-          commandType: undefined
-        }
-      });
+      // Force component re-render by incrementing clear counter
+      setClearCounter(prev => prev + 1);
     }
-  }, [activeTabId, activeTab, updateTab, updateRequest]);
+  }, [activeTabId, clearRequest]);
 
   // Show loading state while tabs are being loaded
   if (!isLoaded) {
@@ -129,14 +117,14 @@ const Panel = () => {
 
       {/* Second layer for action bar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-300 bg-white">
-        <button 
+        <button
           onClick={handleRequestCommand}
           className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-black transition-colors font-medium shadow-sm"
         >
           Request Command
         </button>
         <div className="flex-1"></div>
-        <button 
+        <button
           onClick={handleClear}
           className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white shadow-sm"
         >
@@ -154,8 +142,8 @@ const Panel = () => {
           <button
             onClick={() => handleContentTabClick('request')}
             className={`px-6 py-3 text-sm font-medium transition-colors ${activeContentTab === 'request'
-                ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
             Request
@@ -163,8 +151,8 @@ const Panel = () => {
           <button
             onClick={() => handleContentTabClick('response')}
             className={`px-6 py-3 text-sm font-medium transition-colors ${activeContentTab === 'response'
-                ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
             Response
@@ -176,7 +164,7 @@ const Panel = () => {
           <div className="p-6 bg-white h-full">
             {activeTab && (
               <RequestForm
-                key={`${activeTabId}-${JSON.stringify(activeTab.data.request)}`}
+                key={`${activeTabId}-${clearCounter}`}
                 request={activeTab.data.request}
                 onRequestChange={handleRequestChange}
               />
