@@ -44,11 +44,11 @@ const Panel = () => {
   }, [activeTabId, updateRequest]);
 
   const handleAddFetch = useCallback(() => {
-    setModalState({ isOpen: true, mode: 'fetch', initialValue: activeTab?.data.rawInput || '' });
+    setModalState({ isOpen: true, mode: 'fetch', initialValue: activeTab?.data.fetchInput || '' });
   }, [activeTab]);
 
   const handleAddCurl = useCallback(() => {
-    setModalState({ isOpen: true, mode: 'curl', initialValue: activeTab?.data.rawInput || '' });
+    setModalState({ isOpen: true, mode: 'curl', initialValue: activeTab?.data.curlInput || '' });
   }, [activeTab]);
 
   const handleModalClose = useCallback(() => {
@@ -57,11 +57,12 @@ const Panel = () => {
 
   const handleModalSave = useCallback((rawInput: string, parsedRequest?: Partial<HttpRequest>) => {
     if (activeTabId) {
-      // Update the raw input
+      // Update the appropriate input field based on modal mode
+      const inputField = modalState.mode === 'fetch' ? 'fetchInput' : 'curlInput';
       updateTab(activeTabId, {
         data: {
           ...activeTab!.data,
-          rawInput
+          [inputField]: rawInput
         }
       });
       
@@ -80,7 +81,7 @@ const Panel = () => {
         }
       }
     }
-  }, [activeTabId, activeTab, updateTab, updateRequest]);
+  }, [activeTabId, activeTab, updateTab, updateRequest, modalState.mode]);
 
   // Show loading state while tabs are being loaded
   if (!isLoaded) {

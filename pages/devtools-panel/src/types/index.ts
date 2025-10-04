@@ -23,7 +23,8 @@ export interface Tab {
   data: {
     request: HttpRequest;
     response: HttpResponse | null;
-    rawInput?: string; // Store original cURL/fetch for reference
+    fetchInput?: string; // Store original fetch code for reference
+    curlInput?: string; // Store original cURL command for reference
   };
   isActive: boolean;
   
