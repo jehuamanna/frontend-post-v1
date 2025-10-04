@@ -147,7 +147,7 @@ pages/devtools-panel/src/
 - Onclick of add fetch/curl, open a modal with a codemirror editor to enter the fetch/curl command.
 - onblur or as we type the data should save. It should save persistently.
 -  Data should save per tab basis.
-- make the functionality of tabs active. On click of new tab new context should open
+- make the functionality of tabs active. On click of new tab new context should open. For more reference consult [design/01-tab.md](./design/01-tab.md) 
 
 ### **Immediate (on hold Sprint)**
 1. **HTTP Request Engine**: Implement actual request execution
