@@ -141,7 +141,15 @@ pages/devtools-panel/src/
 
 ## **🚀 Next Priority Tasks**
 
-### **Immediate (Next Sprint)**
+
+### **Immediate (on hold Sprint)**
+1. **fetch/curl editor**: 
+- Onclick of add fetch/curl, open a modal with a codemirror editor to enter the fetch/curl command.
+- onblur or as we type the data should save. It should save persistently.
+-  Data should save per tab basis.
+- make the functionality of tabs active. On click of new tab new context should open
+
+### **Immediate (on hold Sprint)**
 1. **HTTP Request Engine**: Implement actual request execution
 2. **cURL Parser**: Parse cURL commands into request configuration
 3. **Fetch Parser**: Parse fetch commands into request configuration
