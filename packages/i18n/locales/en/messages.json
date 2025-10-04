@@ -1,11 +1,11 @@
 {
   "extensionDescription": {
     "description": "Extension description",
-    "message": "Chrome extension boilerplate developed with Vite, React and Typescript"
+    "message": "Frontend Post - A powerful HTTP API testing tool for developers. Test, debug, and replay HTTP requests directly from Chrome DevTools."
   },
   "extensionName": {
     "description": "Extension name",
-    "message": "Chrome extension boilerplate"
+    "message": "Frontend Post"
   },
   "toggleTheme": {
     "message": "Toggle theme"

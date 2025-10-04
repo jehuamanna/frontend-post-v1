@@ -1,11 +1,11 @@
 {
   "extensionDescription": {
     "description": "Extension description",
-    "message": "React, Typescript, Vite를 사용한 크롬 익스텐션 보일러플레이트입니다."
+    "message": "Frontend Post - 개발자를 위한 강력한 HTTP API 테스팅 도구입니다. Chrome DevTools에서 직접 HTTP 요청을 테스트, 디버그 및 재생할 수 있습니다."
   },
   "extensionName": {
     "description": "Extension name",
-    "message": "크롬 익스텐션 보일러플레이트"
+    "message": "Frontend Post"
   },
   "toggleTheme": {
     "message": "테마 변경"
