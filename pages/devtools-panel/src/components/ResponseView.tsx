@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HttpResponse } from '../types';
+import { getResponseTabOrder, updateResponseTabOrder, type TabOrder } from '../utils/tabPersistence';
 
 interface ResponseViewProps {
   response: HttpResponse | null;
@@ -12,6 +13,69 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
   isLoading,
   error,
 }) => {
+  // Tab configuration for response sections with persistence
+  const [tabOrder, setTabOrder] = useState<TabOrder[]>(() => getResponseTabOrder());
+  const [activeTab, setActiveTab] = useState<string>('body'); // Body is default
+
+  // Load stored tab order on mount
+  useEffect(() => {
+    const storedOrder = getResponseTabOrder();
+    setTabOrder(storedOrder);
+  }, []);
+  const [draggedTab, setDraggedTab] = useState<number | null>(null);
+  const [dragOverTab, setDragOverTab] = useState<number | null>(null);
+
+  // Drag and drop handlers for tab reordering
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedTab(index);
+    // Create invisible drag image
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.globalAlpha = 0;
+      ctx.fillRect(0, 0, 1, 1);
+    }
+    e.dataTransfer.setDragImage(canvas, 0, 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverTab(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverTab(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    
+    if (draggedTab === null) return;
+    
+    const newTabOrder = [...tabOrder];
+    const draggedItem = newTabOrder[draggedTab];
+    
+    // Remove dragged item
+    newTabOrder.splice(draggedTab, 1);
+    
+    // Insert at new position
+    newTabOrder.splice(dropIndex, 0, draggedItem);
+    
+    setTabOrder(newTabOrder);
+    
+    // Persist the new tab order
+    updateResponseTabOrder(newTabOrder);
+    
+    setDraggedTab(null);
+    setDragOverTab(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTab(null);
+    setDragOverTab(null);
+  };
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -81,9 +145,9 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6">
+    <div className="h-full flex flex-col">
       {/* Response status */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 mb-4">
         <span className={`px-3 py-2 border rounded-md text-sm font-semibold shadow-sm ${getStatusColor(response.status)}`}>
           {response.status} {response.statusText}
         </span>
@@ -100,54 +164,93 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
         )}
       </div>
 
-      {/* Response sections */}
-      <div className="flex-1 min-h-0 grid grid-cols-3 gap-6">
-        {/* Body */}
-        <div className="flex flex-col min-h-0">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Body</h3>
-          <div className="flex-1 min-h-0 border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
-            <pre className="text-sm font-mono text-gray-800 leading-relaxed whitespace-pre-wrap">
-              {formatResponseBody(response.body, response.contentType)}
-            </pre>
-          </div>
+      {/* Response tabs */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* Tab navigation */}
+        <div 
+          className="flex border-b border-gray-300 bg-gray-50"
+          style={{ contain: 'layout' }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+        >
+          {tabOrder.map((tab, index) => (
+            <button
+              key={tab.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-xs font-medium transition-colors cursor-move select-none ${
+                activeTab === tab.id
+                  ? 'bg-white border-b-2 border-gray-900 text-gray-900'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              } ${
+                draggedTab === index ? 'opacity-50' : ''
+              } ${
+                dragOverTab === index ? 'bg-blue-100' : ''
+              }`}
+            >
+              {tab.label}
+              <span className="ml-1 text-xs text-gray-400">⋮⋮</span>
+            </button>
+          ))}
         </div>
 
-        {/* Headers */}
-        <div className="flex flex-col min-h-0">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Headers</h3>
-          <div className="flex-1 min-h-0 border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
-            <div className="space-y-2 text-sm">
-              {Object.entries(response.headers).map(([key, value]) => (
-                <div key={key}>
-                  <span className="font-semibold text-gray-900">{key}:</span>{' '}
-                  <span className="text-gray-700">{value}</span>
-                </div>
-              ))}
+        {/* Tab content */}
+        <div className="flex-1 min-h-0 overflow-auto bg-white p-4">
+          {/* Body Tab */}
+          {activeTab === 'body' && (
+            <div className="h-full">
+              <div className="h-full border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
+                <pre className="text-sm font-mono text-gray-800 leading-relaxed whitespace-pre-wrap">
+                  {formatResponseBody(response.body, response.contentType)}
+                </pre>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Cookies */}
-        <div className="flex flex-col min-h-0">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Cookies</h3>
-          <div className="flex-1 min-h-0 border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
-            <div className="space-y-2 text-sm">
-              {response.cookies && response.cookies.length > 0 ? (
-                response.cookies.map((cookie, index) => (
-                  <div key={index} className="border-b border-gray-200 pb-2 last:border-b-0">
-                    <span className="text-gray-700 font-mono text-xs break-all">{cookie}</span>
-                  </div>
-                ))
-              ) : response.headers['set-cookie'] ? (
-                <div>
-                  <span className="font-semibold text-gray-900">set-cookie:</span>{' '}
-                  <span className="text-gray-700">{response.headers['set-cookie']}</span>
+          {/* Headers Tab */}
+          {activeTab === 'headers' && (
+            <div className="h-full">
+              <div className="h-full border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
+                <div className="space-y-2 text-sm">
+                  {Object.entries(response.headers).map(([key, value]) => (
+                    <div key={key}>
+                      <span className="font-semibold text-gray-900">{key}:</span>{' '}
+                      <span className="text-gray-700">{value}</span>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <span className="text-gray-500 italic">No cookies in response</span>
-              )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Cookies Tab */}
+          {activeTab === 'cookies' && (
+            <div className="h-full">
+              <div className="h-full border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
+                <div className="space-y-2 text-sm">
+                  {response.cookies && response.cookies.length > 0 ? (
+                    response.cookies.map((cookie, index) => (
+                      <div key={index} className="border-b border-gray-200 pb-2 last:border-b-0">
+                        <span className="text-gray-700 font-mono text-xs break-all">{cookie}</span>
+                      </div>
+                    ))
+                  ) : response.headers['set-cookie'] ? (
+                    <div>
+                      <span className="font-semibold text-gray-900">set-cookie:</span>{' '}
+                      <span className="text-gray-700">{response.headers['set-cookie']}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500 italic">No cookies in response</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

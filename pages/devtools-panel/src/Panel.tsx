@@ -95,6 +95,15 @@ const Panel = () => {
 
   // Convert HttpRequest to Chrome Extension format and execute
   const executeRequestWithChromeClient = useCallback(async (request: HttpRequest): Promise<HttpResponse> => {
+    console.log('🔄 Converting request for Chrome Extension client:', {
+      url: request.url,
+      method: request.method,
+      bodyType: typeof request.body,
+      bodyValue: request.body,
+      headers: request.headers,
+      params: request.params
+    });
+
     // Build full URL with query parameters
     const url = new URL(request.url);
     if (request.params) {
@@ -124,8 +133,28 @@ const Panel = () => {
     // Add body for methods that support it
     const methodsWithBody = ['POST', 'PUT', 'PATCH', 'DELETE'];
     if (methodsWithBody.includes(request.method.toUpperCase()) && request.body) {
-      fetchOptions.body = request.body;
+      console.log('📦 Adding body to request:', {
+        bodyType: typeof request.body,
+        bodyValue: request.body,
+        bodyLength: request.body.length
+      });
+      
+      // Clean the body if it's a string (remove extra whitespace/newlines)
+      let cleanedBody = request.body;
+      if (typeof request.body === 'string') {
+        cleanedBody = request.body.trim();
+        if (cleanedBody !== request.body) {
+          console.log('🧹 Cleaned body whitespace:', {
+            original: request.body,
+            cleaned: cleanedBody
+          });
+        }
+      }
+      
+      fetchOptions.body = cleanedBody;
     }
+
+    console.log('📋 Final fetch options:', fetchOptions);
 
     // Execute request through Chrome Extension client
     const result = await chromeHttpClient.fetch(url.toString(), fetchOptions);
@@ -265,10 +294,10 @@ const Panel = () => {
       {/* Third layer - Request and Response tabs */}
       <div className="flex-1 min-h-0 flex flex-col">
         {/* Tab navigation */}
-        <div className="flex border-b border-gray-300 bg-gray-50">
+        <div className="flex border-b border-gray-300 bg-white">
           <button
             onClick={() => handleContentTabClick('request')}
-            className={`px-4 py-2 text-xs font-medium transition-colors ${activeContentTab === 'request'
+            className={`px-4 py-2 text-sm font-semibold transition-colors ${activeContentTab === 'request'
               ? 'bg-white border-b-2 border-gray-900 text-gray-900'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
@@ -277,7 +306,7 @@ const Panel = () => {
           </button>
           <button
             onClick={() => handleContentTabClick('response')}
-            className={`px-4 py-2 text-xs font-medium transition-colors ${activeContentTab === 'response'
+            className={`px-4 py-2 text-sm font-semibold transition-colors ${activeContentTab === 'response'
               ? 'bg-white border-b-2 border-gray-900 text-gray-900'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}

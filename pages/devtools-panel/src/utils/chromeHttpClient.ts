@@ -55,16 +55,27 @@ class ChromeHttpClient {
   private ensureConnection(): Promise<chrome.runtime.Port> {
     return new Promise((resolve, reject) => {
       if (this.port && !this.isPortDisconnected(this.port)) {
+        console.log('🔗 Reusing existing port connection');
         resolve(this.port);
         return;
       }
 
       try {
+        console.log('🔌 Establishing new connection to background script...');
+        
+        // Check if chrome.runtime is available
+        if (!chrome || !chrome.runtime) {
+          throw new Error('Chrome runtime not available - not running in extension context');
+        }
+
         // Establish new connection to background script
         this.port = chrome.runtime.connect({ name: 'devtools-panel' });
+        console.log('✅ Port connection established:', this.port.name);
+        
         this.setupPortHandlers(this.port);
         resolve(this.port);
       } catch (error) {
+        console.error('❌ Failed to connect to background script:', error);
         reject(new Error(`Failed to connect to background script: ${error}`));
       }
     });
@@ -81,18 +92,26 @@ class ChromeHttpClient {
 
   // Set up port event handlers
   private setupPortHandlers(port: chrome.runtime.Port) {
+    console.log('🔧 Setting up port handlers for:', port.name);
+    
     // Handle messages from background script
     port.onMessage.addListener((message: FetchResponse) => {
+      console.log('📨 Received message from background:', message.type, message.requestId);
       this.handleResponse(message);
     });
 
     // Handle port disconnection
     port.onDisconnect.addListener(() => {
-      console.warn('🔌 Port disconnected, cleaning up pending requests');
+      const error = chrome.runtime.lastError;
+      console.warn('🔌 Port disconnected:', error?.message || 'Unknown reason');
+      console.warn('Pending requests count:', this.pendingRequests.size);
       
       // Reject all pending requests
       this.pendingRequests.forEach((request, requestId) => {
-        request.reject(new Error(`Port disconnected during request ${requestId}`));
+        const errorMsg = error?.message 
+          ? `Port disconnected: ${error.message}` 
+          : `Port disconnected during request ${requestId}`;
+        request.reject(new Error(errorMsg));
       });
       
       // Clear pending requests
@@ -140,17 +159,20 @@ class ChromeHttpClient {
     }
 
     // Ensure connection to background script
+    console.log('🔄 Ensuring connection to background script...');
     const port = await this.ensureConnection();
     
     // Generate unique request ID
     const requestId = this.generateRequestId(url);
     
     console.log(`🚀 [${requestId}] Executing request: ${options.method || 'GET'} ${url}`);
+    console.log(`📋 [${requestId}] Request options:`, this.sanitizeOptions(options));
 
     // Create promise for async response handling
     const requestPromise = new Promise<FetchResult>((resolve, reject) => {
       // Store request handlers
       this.pendingRequests.set(requestId, { resolve, reject });
+      console.log(`📝 [${requestId}] Added to pending requests (total: ${this.pendingRequests.size})`);
       
       // Send request to background script
       const message: FetchRequest = {
@@ -161,8 +183,11 @@ class ChromeHttpClient {
       };
       
       try {
+        console.log(`📤 [${requestId}] Sending message to background script...`);
         port.postMessage(message);
+        console.log(`✅ [${requestId}] Message sent successfully`);
       } catch (error) {
+        console.error(`❌ [${requestId}] Failed to send message:`, error);
         // Clean up if message sending fails
         this.pendingRequests.delete(requestId);
         reject(new Error(`Failed to send request: ${error}`));
@@ -171,6 +196,7 @@ class ChromeHttpClient {
       // Set timeout for request
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
+          console.warn(`⏰ [${requestId}] Request timeout after 30 seconds`);
           this.pendingRequests.delete(requestId);
           reject(new Error(`Request timeout after 30 seconds`));
         }

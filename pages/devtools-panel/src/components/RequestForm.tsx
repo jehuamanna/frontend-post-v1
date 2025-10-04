@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { HttpRequest, HttpMethod } from '../types';
+import { getRequestTabOrder, updateRequestTabOrder, type TabOrder } from '../utils/tabPersistence';
 
 // Copy to clipboard utility
 const copyToClipboard = async (text: string): Promise<boolean> => {
@@ -32,14 +33,15 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   request,
   onRequestChange,
 }) => {
-  // Tab configuration with Headers always first
-  const [tabOrder, setTabOrder] = useState<Array<{ id: 'params' | 'headers' | 'body', label: string }>>(() => [
-    { id: 'headers', label: 'Headers' },
-    { id: 'params', label: 'Query Parameters' },
-    { id: 'body', label: 'Body' }
-  ]);
+  // Tab configuration with persistence
+  const [tabOrder, setTabOrder] = useState<TabOrder[]>(() => getRequestTabOrder());
+  const [activeTab, setActiveTab] = useState<string>('headers'); // Headers is default
 
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body'>('headers'); // Headers is default
+  // Load stored tab order on mount
+  useEffect(() => {
+    const storedOrder = getRequestTabOrder();
+    setTabOrder(storedOrder);
+  }, []);
   const [draggedTab, setDraggedTab] = useState<number | null>(null);
   const [dragOverTab, setDragOverTab] = useState<number | null>(null);
 
@@ -276,6 +278,10 @@ export const RequestForm: React.FC<RequestFormProps> = ({
               newTabOrder.splice(index, 0, draggedItem);
 
               setTabOrder(newTabOrder);
+              
+              // Persist the new tab order
+              updateRequestTabOrder(newTabOrder);
+              
               setDraggedTab(null);
               setDragOverTab(null);
             }}

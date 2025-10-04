@@ -34,14 +34,90 @@ const pendingRequests = new Map<string, {
   reject: (reason: Error) => void;
 }>();
 
+// Clean JSON string by removing problematic whitespace and validating
+const cleanJsonString = (jsonString: string): string => {
+  try {
+    // First, trim the string
+    let cleaned = jsonString.trim();
+    
+    // Check if it looks like JSON
+    if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
+      // Not JSON, return as-is
+      return jsonString;
+    }
+    
+    // Try to parse and re-stringify to normalize formatting
+    const parsed = JSON.parse(cleaned);
+    const normalized = JSON.stringify(parsed);
+    
+    console.log('🔍 JSON validation successful:', {
+      original: jsonString.substring(0, 100) + (jsonString.length > 100 ? '...' : ''),
+      normalized: normalized.substring(0, 100) + (normalized.length > 100 ? '...' : '')
+    });
+    
+    return normalized;
+    
+  } catch (error) {
+    console.warn('⚠️ JSON validation failed, attempting aggressive cleanup:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      original: jsonString.substring(0, 100) + (jsonString.length > 100 ? '...' : '')
+    });
+    
+    // Aggressive JSON cleanup for common formatting issues
+    let aggressiveCleaned = jsonString
+      .trim() // Remove leading/trailing whitespace
+      .replace(/\r\n/g, '\n') // Normalize line endings
+      .replace(/\n\s*/g, '') // Remove newlines and following spaces
+      .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+      .replace(/,\s*}/g, '}') // Remove trailing commas before closing braces
+      .replace(/,\s*]/g, ']') // Remove trailing commas before closing brackets
+      .replace(/(\w+):/g, '"$1":') // Add quotes around unquoted property names: title: -> "title":
+      .replace(/'/g, '"'); // Replace single quotes with double quotes (do this AFTER property names)
+    
+    // Try parsing the aggressively cleaned version
+    try {
+      const parsed = JSON.parse(aggressiveCleaned);
+      const normalized = JSON.stringify(parsed);
+      
+      console.log('✅ Aggressive cleanup successful:', {
+        original: jsonString.substring(0, 100) + (jsonString.length > 100 ? '...' : ''),
+        cleaned: aggressiveCleaned.substring(0, 100) + (aggressiveCleaned.length > 100 ? '...' : ''),
+        normalized: normalized.substring(0, 100) + (normalized.length > 100 ? '...' : '')
+      });
+      
+      return normalized;
+      
+    } catch (secondError) {
+      console.error('❌ Aggressive cleanup also failed:', {
+        error: secondError instanceof Error ? secondError.message : 'Unknown error',
+        cleaned: aggressiveCleaned.substring(0, 100) + (aggressiveCleaned.length > 100 ? '...' : '')
+      });
+      
+      // Return the basic cleaned version as last resort
+      return aggressiveCleaned;
+    }
+  }
+};
+
 // Preprocess request options (handle object bodies, auto-add headers)
 const preprocessOptions = (options: RequestInit): RequestInit => {
   const processedOptions = { ...options };
   
+  console.log('🔧 Preprocessing request options:', {
+    bodyType: typeof processedOptions.body,
+    bodyValue: processedOptions.body,
+    headers: processedOptions.headers
+  });
+  
   // Handle object bodies - auto-serialize to JSON
-  if (processedOptions.body && typeof processedOptions.body === 'object' && 
+  // Only serialize if it's a plain object (not already a string, FormData, or Blob)
+  if (processedOptions.body && 
+      typeof processedOptions.body === 'object' && 
+      processedOptions.body.constructor === Object && // Only plain objects
       !(processedOptions.body instanceof FormData) && 
       !(processedOptions.body instanceof Blob)) {
+    
+    console.log('📦 Serializing object body to JSON');
     processedOptions.body = JSON.stringify(processedOptions.body);
     
     // Auto-add Content-Type header if not present
@@ -55,7 +131,25 @@ const preprocessOptions = (options: RequestInit): RequestInit => {
     if (!hasContentType) {
       headers['Content-Type'] = 'application/json';
     }
+  } else if (processedOptions.body && typeof processedOptions.body === 'string') {
+    console.log('📝 Body is already a string, cleaning whitespace and validating JSON...');
+    
+    // Clean and validate JSON strings
+    const cleanedBody = cleanJsonString(processedOptions.body);
+    if (cleanedBody !== processedOptions.body) {
+      console.log('🧹 Cleaned JSON string:', {
+        original: processedOptions.body,
+        cleaned: cleanedBody
+      });
+      processedOptions.body = cleanedBody;
+    }
   }
+  
+  console.log('✅ Processed options:', {
+    bodyType: typeof processedOptions.body,
+    bodyValue: processedOptions.body,
+    headers: processedOptions.headers
+  });
   
   return processedOptions;
 };
@@ -180,18 +274,28 @@ const handleFetchRequest = async (message: FetchRequest, port: chrome.runtime.Po
 
 // Set up port communication with DevTools panel
 chrome.runtime.onConnect.addListener((port) => {
+  console.log('🔌 Incoming connection attempt:', port.name);
+  
   if (port.name === 'devtools-panel') {
-    console.log('🔗 DevTools panel connected');
+    console.log('✅ DevTools panel connected successfully');
     
     port.onMessage.addListener((message: FetchRequest) => {
+      console.log('📨 Received message from DevTools:', message.type, message.requestId);
+      
       if (message.type === 'EXECUTE_FETCH') {
+        console.log(`🎯 Processing fetch request: ${message.options.method || 'GET'} ${message.url}`);
         handleFetchRequest(message, port);
+      } else {
+        console.warn('⚠️ Unknown message type:', message.type);
       }
     });
     
     port.onDisconnect.addListener(() => {
-      console.log('🔌 DevTools panel disconnected');
+      const error = chrome.runtime.lastError;
+      console.log('🔌 DevTools panel disconnected:', error?.message || 'Clean disconnect');
     });
+  } else {
+    console.warn('⚠️ Unknown port connection:', port.name);
   }
 });
 
