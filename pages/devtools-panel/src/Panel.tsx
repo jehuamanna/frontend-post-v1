@@ -8,6 +8,7 @@ import { RequestForm } from './components/RequestForm';
 import { ResponseView } from './components/ResponseView';
 import { FetchCurlModal } from './components/FetchCurlModal';
 import { HttpRequest } from './types';
+import { HttpClient } from './utils/httpClient';
 
 const Panel = () => {
   const [activeContentTab, setActiveContentTab] = useState<'request' | 'response'>('request');
@@ -26,6 +27,7 @@ const Panel = () => {
     closeTab,
     switchTab,
     updateRequest,
+    updateResponse,
     updateTab,
     reorderTabs,
     clearRequest,
@@ -91,6 +93,68 @@ const Panel = () => {
     }
   }, [activeTabId, clearRequest]);
 
+  const handleExecute = useCallback(async () => {
+    if (!activeTab || !activeTabId) return;
+    
+    const request = activeTab.data.request;
+    
+    // Validate request
+    if (!request.url?.trim()) {
+      updateResponse(activeTabId, {
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        body: 'URL is required',
+        size: 0,
+        time: 0,
+        url: '',
+        ok: false,
+        error: 'URL is required',
+      });
+      setActiveContentTab('response');
+      return;
+    }
+
+    // Set loading state
+    updateTab(activeTabId, { isLoading: true, lastError: undefined });
+    
+    try {
+      // Execute the HTTP request
+      const response = await HttpClient.executeRequest(request);
+      
+      // Update response in tab
+      updateResponse(activeTabId, response);
+      
+      // Switch to response tab to show results
+      setActiveContentTab('response');
+      
+    } catch (error) {
+      // Handle execution errors
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      updateTab(activeTabId, { 
+        lastError: errorMessage,
+        isLoading: false 
+      });
+      
+      updateResponse(activeTabId, {
+        status: 0,
+        statusText: 'Request Failed',
+        headers: {},
+        body: errorMessage,
+        size: 0,
+        time: 0,
+        url: request.url,
+        ok: false,
+        error: errorMessage,
+      });
+      
+      setActiveContentTab('response');
+    } finally {
+      // Clear loading state
+      updateTab(activeTabId, { isLoading: false });
+    }
+  }, [activeTab, activeTabId, updateResponse, updateTab, setActiveContentTab]);
+
   // Show loading state while tabs are being loaded
   if (!isLoaded) {
     return (
@@ -116,22 +180,30 @@ const Panel = () => {
       />
 
       {/* Second layer for action bar */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-300 bg-white">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 bg-white">
         <button
           onClick={handleRequestCommand}
-          className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-black transition-colors font-medium shadow-sm"
+          className="px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-black transition-colors font-medium"
         >
           Request Command
         </button>
         <div className="flex-1"></div>
         <button
           onClick={handleClear}
-          className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white shadow-sm"
+          className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white"
         >
           Clear
         </button>
-        <button className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-black transition-colors font-medium shadow-sm">
-          Execute
+        <button 
+          onClick={handleExecute}
+          disabled={!activeTab?.data.request.url || activeTab?.isLoading}
+          className={`px-3 py-1.5 text-xs rounded transition-colors font-medium ${
+            !activeTab?.data.request.url || activeTab?.isLoading
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              : 'bg-gray-900 text-white hover:bg-black'
+          }`}
+        >
+          {activeTab?.isLoading ? 'Executing...' : 'Execute'}
         </button>
       </div>
 
@@ -141,8 +213,8 @@ const Panel = () => {
         <div className="flex border-b border-gray-300 bg-gray-50">
           <button
             onClick={() => handleContentTabClick('request')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${activeContentTab === 'request'
-              ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
+            className={`px-4 py-2 text-xs font-medium transition-colors ${activeContentTab === 'request'
+              ? 'bg-white border-b-2 border-gray-900 text-gray-900'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
@@ -150,8 +222,8 @@ const Panel = () => {
           </button>
           <button
             onClick={() => handleContentTabClick('response')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${activeContentTab === 'response'
-              ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
+            className={`px-4 py-2 text-xs font-medium transition-colors ${activeContentTab === 'response'
+              ? 'bg-white border-b-2 border-gray-900 text-gray-900'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
@@ -161,7 +233,7 @@ const Panel = () => {
 
         {/* Request tab content */}
         <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'request' ? 'hidden' : ''}`}>
-          <div className="p-6 bg-white h-full">
+          <div className="p-3 bg-white h-full">
             {activeTab && (
               <RequestForm
                 key={`${activeTabId}-${clearCounter}`}
@@ -174,7 +246,7 @@ const Panel = () => {
 
         {/* Response tab content */}
         <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'response' ? 'hidden' : ''}`}>
-          <div className="p-6 bg-white h-full">
+          <div className="p-3 bg-white h-full">
             {activeTab && (
               <ResponseView
                 response={activeTab.data.response}
@@ -187,9 +259,9 @@ const Panel = () => {
       </div>
 
       {/* Bottom layer for footer */}
-      <div className="h-10 border-t border-gray-300 px-4 text-sm text-gray-600 flex items-center justify-between bg-gray-100">
+      <div className="h-8 border-t border-gray-300 px-3 text-xs text-gray-600 flex items-center justify-between bg-gray-100">
         <span className="font-medium">FrontendPost - API Testing Tool</span>
-        <span className="px-3 py-1 rounded-md border font-medium bg-green-50 text-green-800 border-green-200 shadow-sm">
+        <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
           Ready
         </span>
       </div>

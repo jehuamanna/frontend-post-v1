@@ -11,10 +11,11 @@ export interface HttpResponse {
   statusText: string;
   headers: Record<string, string>;
   body: string;
-  timestamp: number;
-  duration: number; // in milliseconds
   size: number; // Response size in bytes
-  contentType?: string; // Extracted from headers for convenience
+  time: number; // Request duration in milliseconds
+  url: string; // Final URL after redirects
+  ok: boolean; // Whether the response was successful (status 200-299)
+  error?: string; // Error message if request failed
 }
 
 export interface Tab {

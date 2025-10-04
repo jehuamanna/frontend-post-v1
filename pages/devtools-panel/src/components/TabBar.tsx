@@ -21,10 +21,11 @@ export const TabBar: React.FC<TabBarProps> = ({
 }) => {
   const [draggedTab, setDraggedTab] = useState<number | null>(null);
   const [dragOverTab, setDragOverTab] = useState<number | null>(null);
+  
   return (
-    <div className="flex items-center border-b border-gray-300 px-3 py-2 bg-gray-100">
+    <div className="flex items-center border-b border-gray-300 px-2 py-1.5 bg-gray-100">
       <div 
-        className="flex space-x-2 overflow-x-auto relative" 
+        className="flex space-x-1 overflow-x-auto relative"
         style={{ contain: 'layout' }}
         onDragOver={(e) => {
           // Only allow drops within the tab container
@@ -45,7 +46,7 @@ export const TabBar: React.FC<TabBarProps> = ({
             <div
               key={tab.id}
               draggable={onTabReorder ? true : false}
-              className={`group relative flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+              className={`group relative flex items-center gap-1.5 px-2 py-1.5 text-xs rounded transition-colors ${
                 onTabReorder ? 'cursor-move' : 'cursor-pointer'
               } ${
                 isActive

@@ -3,6 +3,28 @@ import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { HttpRequest } from '../types';
 
+// Copy to clipboard utility
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    // Fallback for older browsers
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return true;
+    } catch (fallbackErr) {
+      console.error('Failed to copy to clipboard:', fallbackErr);
+      return false;
+    }
+  }
+};
+
 interface FetchCurlModalProps {
   isOpen: boolean;
   initialValue?: string;
@@ -20,6 +42,16 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string>('');
   const [detectedType, setDetectedType] = useState<'fetch' | 'curl' | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Copy feedback timeout
+  useEffect(() => {
+    if (copyFeedback) {
+      const timer = setTimeout(() => setCopyFeedback(null), 2000);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [copyFeedback]);
 
   useEffect(() => {
     setValue(initialValue);
@@ -322,6 +354,14 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
     }
   }, [handleAutoSave, onClose]);
 
+  // Copy command content
+  const copyCommand = useCallback(async () => {
+    if (value.trim()) {
+      const success = await copyToClipboard(value);
+      setCopyFeedback(success ? 'Command copied!' : 'Copy failed');
+    }
+  }, [value]);
+
   if (!isOpen) return null;
 
   return (
@@ -338,7 +378,7 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
             </h2>
             {detectedType && (
               <p className="text-sm text-gray-500 mt-1">
-                Detected: {detectedType.toUpperCase()} command
+                Detected: {detectedType?.toUpperCase()} command
               </p>
             )}
           </div>
@@ -352,6 +392,13 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
           </button>
         </div>
 
+        {/* Copy Feedback */}
+        {copyFeedback && (
+          <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-md shadow-lg z-50">
+            {copyFeedback}
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 min-h-0 p-6">
           <div className="h-full flex flex-col">
@@ -359,7 +406,7 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
               Enter fetch or cURL command
             </label>
             
-            <div className="flex-1 min-h-0 border border-gray-300 rounded-md overflow-hidden">
+            <div className="flex-1 min-h-0 border border-gray-300 rounded-md overflow-hidden relative">
               <CodeMirror
                 value={value}
                 onChange={handleChange}
@@ -375,6 +422,17 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
                 }}
                 className="h-full"
               />
+              {value.trim() && (
+                <button
+                  onClick={copyCommand}
+                  className="absolute right-2 top-2 p-1 text-gray-400 hover:text-gray-600 transition-colors bg-white rounded shadow-sm border border-gray-200"
+                  title="Copy command"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {/* Error message */}
