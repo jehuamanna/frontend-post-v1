@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { HttpRequest, HttpMethod } from '../types';
 
 interface RequestFormProps {
@@ -25,18 +25,32 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   });
 
   // Sync headers with request changes
-  React.useEffect(() => {
-    const headerEntries = Object.entries(request.headers);
+  useEffect(() => {
+    const headerEntries = Object.entries(request.headers || {});
+    console.log('Headers changed:', request.headers, 'entries:', headerEntries);
+    
+    // Always sync with the actual request headers
     if (headerEntries.length > 0) {
-      setHeaders(headerEntries);
+      setHeaders([...headerEntries]); // Force new array
+    } else {
+      // When completely empty, show default empty state
+      console.log('Resetting headers to empty state');
+      setHeaders([['', '']]);
     }
   }, [request.headers]);
 
   // Sync query params with request changes
-  React.useEffect(() => {
+  useEffect(() => {
     const paramEntries = Object.entries(request.params || {});
+    console.log('Params changed:', request.params, 'entries:', paramEntries);
+    
+    // Always update params to ensure proper sync
     if (paramEntries.length > 0) {
-      setQueryParams(paramEntries);
+      setQueryParams([...paramEntries]); // Force new array
+    } else {
+      // Reset to default when params are cleared
+      console.log('Resetting params to default');
+      setQueryParams([['', '']]);
     }
   }, [request.params]);
 

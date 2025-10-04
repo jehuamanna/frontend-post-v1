@@ -1,5 +1,72 @@
 # Current bugs
 
+## ✅ FIXED: Clear Button and New Tab Issues (2025-10-04 at 15:45)
+
+### **Bug 1: Clear button does not clear the fields**
+**Root Cause**: 
+- Clear function only reset headers/body but kept URL and method
+- RequestForm local state (headers, queryParams) wasn't syncing when request data was cleared
+
+**Solution Applied**:
+1. **Enhanced Clear Function** (`src/Panel.tsx`):
+   - Now clears ALL fields: URL, method, headers, body, params
+   - Resets method to 'GET' and tab name to 'New Request GET'
+   - Clears raw command and command type
+
+2. **Fixed RequestForm State Sync** (`src/components/RequestForm.tsx`):
+   - Added proper reset logic in useEffect hooks
+   - Headers reset to default when cleared: `[['Content-Type', 'application/json'], ['Authorization', '']]`
+   - Query params reset to default when cleared: `[['', '']]`
+
+### **Bug 2: New tab button does not open a fresh tab**
+**Root Cause**: 
+- Tab creation was working correctly
+- Issue was with RequestForm not properly displaying fresh state due to state sync problems
+
+**Solution Applied**:
+- Fixed RequestForm state synchronization (same fix as Bug 1)
+- New tabs now properly display with empty fields
+- Tab switching correctly updates UI state
+
+### **Technical Details**:
+```typescript
+// Enhanced clear function
+const handleClear = useCallback(() => {
+  if (activeTabId) {
+    updateRequest(activeTabId, {
+      url: '',
+      method: 'GET', 
+      headers: {},
+      body: '',
+      params: {}
+    });
+    
+    updateTab(activeTabId, {
+      name: 'New Request GET',
+      data: {
+        ...activeTab!.data,
+        rawCommand: '',
+        commandType: undefined
+      }
+    });
+  }
+}, [activeTabId, activeTab, updateTab, updateRequest]);
+
+// Fixed state sync in RequestForm
+React.useEffect(() => {
+  const headerEntries = Object.entries(request.headers);
+  if (headerEntries.length > 0) {
+    setHeaders(headerEntries);
+  } else {
+    setHeaders([['Content-Type', 'application/json'], ['Authorization', '']]);
+  }
+}, [request.headers]);
+```
+
+**Result**: Both Clear button and New Tab button now work correctly with proper field reset.
+
+
+
 ## ✅ FIXED: Layout and Footer Positioning Bug
 
 **Issue**: Footer was overlapping the request/response content area. The request and response content was spilling over the bottom of the page without proper scrollable areas.

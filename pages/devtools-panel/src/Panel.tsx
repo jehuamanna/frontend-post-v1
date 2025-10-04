@@ -51,6 +51,7 @@ const Panel = () => {
   }, []);
 
   const handleModalSave = useCallback((rawCommand: string, parsedRequest?: Partial<HttpRequest>, commandType?: 'fetch' | 'curl') => {
+    console.log('Modal save called with:', { rawCommand, parsedRequest, commandType });
     if (activeTabId) {
       // Update the raw command and detected type
       updateTab(activeTabId, {
@@ -63,6 +64,7 @@ const Panel = () => {
       
       // If we successfully parsed the request, update the request data
       if (parsedRequest) {
+        console.log('Updating request with parsed data:', parsedRequest);
         updateRequest(activeTabId, parsedRequest);
         
         // Update tab name if URL is available
@@ -79,16 +81,26 @@ const Panel = () => {
   }, [activeTabId, activeTab, updateTab, updateRequest]);
 
   const handleClear = useCallback(() => {
+    console.log('Clear button clicked, activeTabId:', activeTabId);
     if (activeTabId) {
-      // Smart clear - keep URL and method, reset headers/body and raw command
-      updateRequest(activeTabId, {
-        headers: { 'Content-Type': 'application/json' }, // Minimal default
+      // Complete clear - reset all fields to defaults
+      // Match the default headers that RequestForm expects
+      const clearData = {
+        url: '',
+        method: 'GET' as const,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': ''
+        },
         body: '',
         params: {}
-      });
+      };
+      console.log('Clearing with data:', clearData);
+      updateRequest(activeTabId, clearData);
       
-      // Clear raw command
+      // Clear raw command and reset tab name
       updateTab(activeTabId, {
+        name: 'New Request GET',
         data: {
           ...activeTab!.data,
           rawCommand: '',
@@ -170,6 +182,7 @@ const Panel = () => {
           <div className="p-6 bg-white h-full">
             {activeTab && (
               <RequestForm
+                key={`${activeTabId}-${JSON.stringify(activeTab.data.request)}`}
                 request={activeTab.data.request}
                 onRequestChange={handleRequestChange}
               />
