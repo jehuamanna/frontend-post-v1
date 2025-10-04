@@ -43,7 +43,7 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
     return `// Enter fetch command or cURL command
 
 // Fetch example:
-fetch('https://api.example.com/users', {
+fetch('https://api.example.com/users?page=1&limit=10', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ fetch('https://api.example.com/users', {
 })
 
 // cURL example:
-curl -X POST https://api.example.com/users \\
+curl -X POST "https://api.example.com/users?page=1&limit=10" \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer token" \\
   -d '{
@@ -76,7 +76,22 @@ curl -X POST https://api.example.com/users \\
       const request: Partial<HttpRequest> = {};
 
       if (urlMatch) {
-        request.url = urlMatch[1];
+        const fullUrl = urlMatch[1];
+        // Extract query parameters from URL
+        const [baseUrl, queryString] = fullUrl.split('?');
+        request.url = baseUrl;
+        
+        if (queryString) {
+          const params: Record<string, string> = {};
+          const paramPairs = queryString.split('&');
+          paramPairs.forEach(pair => {
+            const [key, value] = pair.split('=');
+            if (key) {
+              params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+            }
+          });
+          request.params = params;
+        }
       }
 
       if (methodMatch) {
@@ -107,7 +122,15 @@ curl -X POST https://api.example.com/users \\
 
       if (bodyMatch) {
         try {
-          request.body = bodyMatch[1];
+          let bodyContent = bodyMatch[1];
+          // Try to format JSON body
+          try {
+            const parsed = JSON.parse(bodyContent);
+            request.body = JSON.stringify(parsed, null, 2);
+          } catch {
+            // If not valid JSON, keep as-is
+            request.body = bodyContent;
+          }
         } catch {
           // If JSON parsing fails, keep as string
         }
@@ -131,7 +154,22 @@ curl -X POST https://api.example.com/users \\
       // Extract URL
       const urlMatch = curlCommand.match(/curl\s+(?:-[^\s]+\s+)*['"`]?([^'"`\s]+)['"`]?/);
       if (urlMatch) {
-        request.url = urlMatch[1];
+        const fullUrl = urlMatch[1];
+        // Extract query parameters from URL
+        const [baseUrl, queryString] = fullUrl.split('?');
+        request.url = baseUrl;
+        
+        if (queryString) {
+          const params: Record<string, string> = {};
+          const paramPairs = queryString.split('&');
+          paramPairs.forEach(pair => {
+            const [key, value] = pair.split('=');
+            if (key) {
+              params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+            }
+          });
+          request.params = params;
+        }
       }
 
       // Extract method
@@ -144,7 +182,7 @@ curl -X POST https://api.example.com/users \\
       const headers: Record<string, string> = {};
       const headerMatches = curlCommand.match(/-H\s+['"`]([^'"`]+)['"`]/g);
       if (headerMatches) {
-        headerMatches.forEach(match => {
+        headerMatches.forEach((match: string) => {
           const headerMatch = match.match(/-H\s+['"`]([^'"`]+)['"`]/);
           if (headerMatch) {
             const [key, ...valueParts] = headerMatch[1].split(':');
@@ -159,7 +197,15 @@ curl -X POST https://api.example.com/users \\
       // Extract body
       const bodyMatch = curlCommand.match(/-d\s+['"`]([^'"`]+)['"`]/s);
       if (bodyMatch) {
-        request.body = bodyMatch[1];
+        let bodyContent = bodyMatch[1];
+        // Try to format JSON body
+        try {
+          const parsed = JSON.parse(bodyContent);
+          request.body = JSON.stringify(parsed, null, 2);
+        } catch {
+          // If not valid JSON, keep as-is
+          request.body = bodyContent;
+        }
       }
 
       return request;
