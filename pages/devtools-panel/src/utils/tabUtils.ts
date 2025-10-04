@@ -19,8 +19,8 @@ export const createNewTab = (name?: string, request?: Partial<HttpRequest>): Tab
     data: {
       request: finalRequest,
       response: null,
-      fetchInput: undefined,
-      curlInput: undefined,
+      rawCommand: undefined,
+      commandType: undefined,
     },
     isActive: false,
     isLoading: false,

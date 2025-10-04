@@ -193,7 +193,7 @@ pages/devtools-panel/src/
 
 ## **🚀 Next Priority Tasks**
 
-### **Quit current sprint ** (Ready for Implementation)
+### **current sprint ** (Ready for Implementation)
 1. Instead of having fetch and curl editor, we should have a single editor. Remove those fetch and curl buttons and make it single "request command" button
  But internally it should have two different versions of the command. Fetch and Curl. But the user will see the command which he had pasted 
 2. Parse the fetch and http request command and display it in the request form ( that is headers and body) Body must be parsed and displayed in the body section. 

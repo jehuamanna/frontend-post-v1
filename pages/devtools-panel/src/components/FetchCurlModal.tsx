@@ -5,15 +5,13 @@ import { HttpRequest } from '../types';
 
 interface FetchCurlModalProps {
   isOpen: boolean;
-  mode: 'fetch' | 'curl';
   initialValue?: string;
   onClose: () => void;
-  onSave: (rawInput: string, parsedRequest?: Partial<HttpRequest>) => void;
+  onSave: (rawCommand: string, parsedRequest?: Partial<HttpRequest>, commandType?: 'fetch' | 'curl') => void;
 }
 
 export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
   isOpen,
-  mode,
   initialValue = '',
   onClose,
   onSave,
@@ -21,14 +19,31 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
   const [value, setValue] = useState(initialValue);
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string>('');
+  const [detectedType, setDetectedType] = useState<'fetch' | 'curl' | null>(null);
 
   useEffect(() => {
     setValue(initialValue);
+    if (initialValue) {
+      const type = detectCommandType(initialValue);
+      setDetectedType(type);
+    }
   }, [initialValue, isOpen]);
 
+  const detectCommandType = (input: string): 'fetch' | 'curl' | null => {
+    const trimmed = input.trim();
+    if (trimmed.startsWith('curl')) {
+      return 'curl';
+    } else if (trimmed.includes('fetch(')) {
+      return 'fetch';
+    }
+    return null;
+  };
+
   const getPlaceholder = () => {
-    if (mode === 'fetch') {
-      return `fetch('https://api.example.com/users', {
+    return `// Enter fetch command or cURL command
+
+// Fetch example:
+fetch('https://api.example.com/users', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -38,16 +53,16 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
     name: 'John Doe',
     email: 'john@example.com'
   })
-})`;
-    } else {
-      return `curl -X POST https://api.example.com/users \\
+})
+
+// cURL example:
+curl -X POST https://api.example.com/users \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer token" \\
   -d '{
     "name": "John Doe",
     "email": "john@example.com"
   }'`;
-    }
   };
 
   const parseFetchCode = (fetchCode: string): Partial<HttpRequest> | null => {
@@ -158,13 +173,23 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
     if (!input.trim()) {
       setIsValid(true);
       setError('');
-      return null;
+      setDetectedType(null);
+      return { parsed: null, type: null };
+    }
+
+    const commandType = detectCommandType(input);
+    setDetectedType(commandType);
+
+    if (!commandType) {
+      setIsValid(false);
+      setError('Unable to detect command type. Please enter a valid fetch or cURL command.');
+      return { parsed: null, type: null };
     }
 
     try {
       let parsed: Partial<HttpRequest> | null = null;
       
-      if (mode === 'fetch') {
+      if (commandType === 'fetch') {
         parsed = parseFetchCode(input);
       } else {
         parsed = parseCurlCommand(input);
@@ -173,43 +198,67 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
       if (parsed && parsed.url) {
         setIsValid(true);
         setError('');
-        return parsed;
+        return { parsed, type: commandType };
       } else {
         setIsValid(false);
-        setError(`Invalid ${mode} format. Please check your syntax.`);
-        return null;
+        setError(`Invalid ${commandType} format. Please check your syntax.`);
+        return { parsed: null, type: commandType };
       }
     } catch (err) {
       setIsValid(false);
-      setError(`Failed to parse ${mode}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      return null;
+      setError(`Failed to parse ${commandType}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      return { parsed: null, type: commandType };
     }
-  }, [mode]);
+  }, []);
 
-  const handleSave = useCallback(() => {
-    const parsed = validateAndParse(value);
-    onSave(value, parsed || undefined);
-    onClose();
-  }, [value, validateAndParse, onSave, onClose]);
+  const handleAutoSave = useCallback(() => {
+    const result = validateAndParse(value);
+    onSave(value, result.parsed || undefined, result.type || undefined);
+  }, [value, validateAndParse, onSave]);
+
+  const handleBlur = useCallback(() => {
+    handleAutoSave();
+  }, [handleAutoSave]);
 
   const handleChange = useCallback((val: string) => {
     setValue(val);
-    // Debounced validation
+    // Debounced validation and auto-save
     setTimeout(() => {
-      validateAndParse(val);
-    }, 300);
-  }, [validateAndParse]);
+      const result = validateAndParse(val);
+      if (result.parsed) {
+        onSave(val, result.parsed, result.type || undefined);
+      }
+    }, 500);
+  }, [validateAndParse, onSave]);
+
+  // Handle click outside to close
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleAutoSave();
+      onClose();
+    }
+  }, [handleAutoSave, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={handleBackdropClick}
+    >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Add {mode === 'fetch' ? 'Fetch' : 'cURL'} Command
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Request Command Editor
+            </h2>
+            {detectedType && (
+              <p className="text-sm text-gray-500 mt-1">
+                Detected: {detectedType.toUpperCase()} command
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -224,13 +273,14 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
         <div className="flex-1 min-h-0 p-6">
           <div className="h-full flex flex-col">
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              {mode === 'fetch' ? 'Fetch Code' : 'cURL Command'}
+              Enter fetch or cURL command
             </label>
             
             <div className="flex-1 min-h-0 border border-gray-300 rounded-md overflow-hidden">
               <CodeMirror
                 value={value}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 placeholder={getPlaceholder()}
                 extensions={[javascript()]}
                 theme="light"
@@ -252,10 +302,10 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
             )}
 
             {/* Validation status */}
-            {value.trim() && isValid && (
+            {value.trim() && isValid && detectedType && (
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-sm text-green-600">
-                  ✓ Valid {mode} format detected
+                  ✓ Valid {detectedType} command detected
                 </p>
               </div>
             )}
@@ -263,19 +313,15 @@ export const FetchCurlModal: React.FC<FetchCurlModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Auto-saves on blur • Click outside to close
+          </p>
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!value.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Save
+            Close
           </button>
         </div>
       </div>

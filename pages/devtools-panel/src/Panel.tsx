@@ -13,9 +13,8 @@ const Panel = () => {
   const [activeContentTab, setActiveContentTab] = useState<'request' | 'response'>('request');
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
-    mode: 'fetch' | 'curl';
     initialValue?: string;
-  }>({ isOpen: false, mode: 'fetch' });
+  }>({ isOpen: false });
   
   const {
     tabs,
@@ -43,26 +42,22 @@ const Panel = () => {
     }
   }, [activeTabId, updateRequest]);
 
-  const handleAddFetch = useCallback(() => {
-    setModalState({ isOpen: true, mode: 'fetch', initialValue: activeTab?.data.fetchInput || '' });
-  }, [activeTab]);
-
-  const handleAddCurl = useCallback(() => {
-    setModalState({ isOpen: true, mode: 'curl', initialValue: activeTab?.data.curlInput || '' });
+  const handleRequestCommand = useCallback(() => {
+    setModalState({ isOpen: true, initialValue: activeTab?.data.rawCommand || '' });
   }, [activeTab]);
 
   const handleModalClose = useCallback(() => {
-    setModalState({ isOpen: false, mode: 'fetch' });
+    setModalState({ isOpen: false });
   }, []);
 
-  const handleModalSave = useCallback((rawInput: string, parsedRequest?: Partial<HttpRequest>) => {
+  const handleModalSave = useCallback((rawCommand: string, parsedRequest?: Partial<HttpRequest>, commandType?: 'fetch' | 'curl') => {
     if (activeTabId) {
-      // Update the appropriate input field based on modal mode
-      const inputField = modalState.mode === 'fetch' ? 'fetchInput' : 'curlInput';
+      // Update the raw command and detected type
       updateTab(activeTabId, {
         data: {
           ...activeTab!.data,
-          [inputField]: rawInput
+          rawCommand,
+          commandType
         }
       });
       
@@ -81,7 +76,27 @@ const Panel = () => {
         }
       }
     }
-  }, [activeTabId, activeTab, updateTab, updateRequest, modalState.mode]);
+  }, [activeTabId, activeTab, updateTab, updateRequest]);
+
+  const handleClear = useCallback(() => {
+    if (activeTabId) {
+      // Smart clear - keep URL and method, reset headers/body and raw command
+      updateRequest(activeTabId, {
+        headers: { 'Content-Type': 'application/json' }, // Minimal default
+        body: '',
+        params: {}
+      });
+      
+      // Clear raw command
+      updateTab(activeTabId, {
+        data: {
+          ...activeTab!.data,
+          rawCommand: '',
+          commandType: undefined
+        }
+      });
+    }
+  }, [activeTabId, activeTab, updateTab, updateRequest]);
 
   // Show loading state while tabs are being loaded
   if (!isLoaded) {
@@ -109,19 +124,16 @@ const Panel = () => {
       {/* Second layer for action bar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-300 bg-white">
         <button 
-          onClick={handleAddFetch}
+          onClick={handleRequestCommand}
           className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-black transition-colors font-medium shadow-sm"
         >
-          Add Fetch
-        </button>
-        <button 
-          onClick={handleAddCurl}
-          className="px-4 py-2 text-sm bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors font-medium shadow-sm"
-        >
-          Add cURL
+          Request Command
         </button>
         <div className="flex-1"></div>
-        <button className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white shadow-sm">
+        <button 
+          onClick={handleClear}
+          className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white shadow-sm"
+        >
           Clear
         </button>
         <button className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-black transition-colors font-medium shadow-sm">
@@ -190,7 +202,6 @@ const Panel = () => {
       {/* Fetch/cURL Modal */}
       <FetchCurlModal
         isOpen={modalState.isOpen}
-        mode={modalState.mode}
         initialValue={modalState.initialValue}
         onClose={handleModalClose}
         onSave={handleModalSave}
