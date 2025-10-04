@@ -120,21 +120,31 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
       }
 
       if (bodyMatch) {
+        let bodyContent = bodyMatch[1];
+        console.log('Fetch body extracted:', bodyContent);
+        
+        // Try to format JSON body
         try {
-          let bodyContent = bodyMatch[1];
-          // Try to format JSON body
-          try {
-            const parsed = JSON.parse(bodyContent);
-            request.body = JSON.stringify(parsed, null, 2);
-          } catch {
-            // If not valid JSON, keep as-is
-            request.body = bodyContent;
-          }
+          const parsed = JSON.parse(bodyContent);
+          request.body = JSON.stringify(parsed, null, 2);
         } catch {
-          // If JSON parsing fails, keep as string
+          // If not valid JSON, keep as-is
+          request.body = bodyContent;
+        }
+      }
+      
+      // Also try to match other body formats (not just JSON.stringify)
+      if (!request.body) {
+        const alternativeBodyMatch = fetchCode.match(/body\s*:\s*(['"`])([\s\S]*?)\1/) ||
+                                   fetchCode.match(/body\s*:\s*([^,}]+)/);
+        if (alternativeBodyMatch) {
+          let bodyContent = alternativeBodyMatch[2] || alternativeBodyMatch[1];
+          console.log('Fetch alternative body extracted:', bodyContent);
+          request.body = bodyContent.trim();
         }
       }
 
+      console.log('Final parsed fetch request:', request);
       return request;
     } catch (err) {
       console.error('Failed to parse fetch code:', err);
@@ -193,20 +203,48 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
       }
       request.headers = headers;
 
-      // Extract body
-      const bodyMatch = curlCommand.match(/-d\s+['"`]([^'"`]+)['"`]/s);
+      // Extract body - comprehensive regex to handle all cURL data options
+      const bodyMatch = curlCommand.match(/-d\s+(['"`])([\s\S]*?)\1/s) || 
+                       curlCommand.match(/-d\s+([^-\s]+)/s) ||
+                       curlCommand.match(/--data\s+(['"`])([\s\S]*?)\1/s) ||
+                       curlCommand.match(/--data\s+([^-\s]+)/s) ||
+                       curlCommand.match(/--data-raw\s+(['"`])([\s\S]*?)\1/s) ||
+                       curlCommand.match(/--data-raw\s+([^-\s]+)/s) ||
+                       curlCommand.match(/--data-binary\s+(['"`])([\s\S]*?)\1/s) ||
+                       curlCommand.match(/--data-binary\s+([^-\s]+)/s) ||
+                       curlCommand.match(/--data-urlencode\s+(['"`])([\s\S]*?)\1/s) ||
+                       curlCommand.match(/--data-urlencode\s+([^-\s]+)/s);
+      
       if (bodyMatch) {
-        let bodyContent = bodyMatch[1];
-        // Try to format JSON body
+        let bodyContent = bodyMatch[2] || bodyMatch[1]; // Handle both quote and non-quote matches
+        console.log('cURL body extracted:', bodyContent);
+        
+        // Try to decode URL-encoded content first (common with --data-raw)
         try {
-          const parsed = JSON.parse(bodyContent);
-          request.body = JSON.stringify(parsed, null, 2);
+          const decoded = decodeURIComponent(bodyContent);
+          console.log('URL decoded body:', decoded);
+          
+          // Try to parse as JSON
+          try {
+            const parsed = JSON.parse(decoded);
+            request.body = JSON.stringify(parsed, null, 2);
+          } catch {
+            // If decoded content isn't JSON, use decoded version
+            request.body = decoded;
+          }
         } catch {
-          // If not valid JSON, keep as-is
-          request.body = bodyContent;
+          // If URL decoding fails, try direct JSON parsing
+          try {
+            const parsed = JSON.parse(bodyContent);
+            request.body = JSON.stringify(parsed, null, 2);
+          } catch {
+            // If not valid JSON, keep as-is
+            request.body = bodyContent;
+          }
         }
       }
 
+      console.log('Final parsed cURL request:', request);
       return request;
     } catch (err) {
       console.error('Failed to parse cURL command:', err);

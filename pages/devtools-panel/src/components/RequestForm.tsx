@@ -11,12 +11,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   onRequestChange,
 }) => {
   // Tab configuration with Headers always first
-  const [tabOrder, setTabOrder] = useState<Array<{id: 'params' | 'headers' | 'body', label: string}>>(() => [
+  const [tabOrder, setTabOrder] = useState<Array<{ id: 'params' | 'headers' | 'body', label: string }>>(() => [
     { id: 'headers', label: 'Headers' },
     { id: 'params', label: 'Query Parameters' },
     { id: 'body', label: 'Body' }
   ]);
-  
+
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body'>('headers'); // Headers is default
   const [draggedTab, setDraggedTab] = useState<number | null>(null);
   const [dragOverTab, setDragOverTab] = useState<number | null>(null);
@@ -164,8 +164,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       </div>
 
       {/* Tab Navigation - All Draggable (X-axis only) */}
-      <div 
-        className="flex border-b border-gray-300 bg-gray-50 relative" 
+      <div
+        className="flex border-b border-gray-300 bg-gray-50 relative"
         onDragOver={(e) => {
           // Only allow drops within the tab container
           e.preventDefault();
@@ -184,7 +184,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
             onDragStart={(e) => {
               setDraggedTab(index);
               e.dataTransfer.effectAllowed = 'move';
-              
+
               // Create a transparent 1x1 pixel drag image to hide the default ghost
               const canvas = document.createElement('canvas');
               canvas.width = 1;
@@ -208,12 +208,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
             onDrop={(e) => {
               e.preventDefault();
               if (draggedTab === null || draggedTab === index) return;
-              
+
               const newTabOrder = [...tabOrder];
               const draggedItem = newTabOrder[draggedTab];
               newTabOrder.splice(draggedTab, 1);
               newTabOrder.splice(index, 0, draggedItem);
-              
+
               setTabOrder(newTabOrder);
               setDraggedTab(null);
               setDragOverTab(null);
@@ -222,15 +222,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
               setDraggedTab(null);
               setDragOverTab(null);
             }}
-            className={`px-6 py-3 text-sm font-medium transition-colors relative cursor-move ${
-              activeTab === tab.id
+            className={`px-6 py-3 text-sm font-medium transition-colors relative cursor-move ${activeTab === tab.id
                 ? 'bg-white border-b-2 border-gray-900 text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            } ${
-              draggedTab === index ? 'opacity-50' : ''
-            } ${
-              dragOverTab === index && draggedTab !== index ? 'border-l-4 border-blue-500' : ''
-            }`}
+              } ${draggedTab === index ? 'opacity-50' : ''
+              } ${dragOverTab === index && draggedTab !== index ? 'border-l-4 border-blue-500' : ''
+              }`}
           >
             {tab.label}
             <span className="ml-2 text-xs text-gray-400">⋮⋮</span>
@@ -239,7 +236,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0">
         {/* Headers Tab */}
         <div className={`px-6 bg-white h-full ${activeTab !== 'headers' ? 'hidden' : ''}`}>
           <div className="h-full flex flex-col">
