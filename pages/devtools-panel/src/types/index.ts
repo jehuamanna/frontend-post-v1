@@ -16,6 +16,9 @@ export interface HttpResponse {
   url: string; // Final URL after redirects
   ok: boolean; // Whether the response was successful (status 200-299)
   error?: string; // Error message if request failed
+  cookies: string[]; // Array of cookie strings from Chrome Cookies API
+  contentType?: string; // Content-Type header for easier access
+  duration?: number; // Alias for time (for compatibility)
 }
 
 export interface Tab {

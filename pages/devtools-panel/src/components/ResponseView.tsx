@@ -88,7 +88,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
           {response.status} {response.statusText}
         </span>
         <span className="text-sm text-gray-700 font-medium">
-          Response time: {response.duration}ms
+          Response time: {response.duration || response.time}ms
         </span>
         <span className="text-sm text-gray-700 font-medium">
           Size: {(response.size / 1024).toFixed(1)}KB
@@ -132,7 +132,13 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Cookies</h3>
           <div className="flex-1 min-h-0 border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
             <div className="space-y-2 text-sm">
-              {response.headers['set-cookie'] ? (
+              {response.cookies && response.cookies.length > 0 ? (
+                response.cookies.map((cookie, index) => (
+                  <div key={index} className="border-b border-gray-200 pb-2 last:border-b-0">
+                    <span className="text-gray-700 font-mono text-xs break-all">{cookie}</span>
+                  </div>
+                ))
+              ) : response.headers['set-cookie'] ? (
                 <div>
                   <span className="font-semibold text-gray-900">set-cookie:</span>{' '}
                   <span className="text-gray-700">{response.headers['set-cookie']}</span>

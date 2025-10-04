@@ -27,8 +27,8 @@ const manifest = {
   // Needed so you can capture/replay arbitrary requests
   host_permissions: ['<all_urls>'],
 
-  // Keep only what's required
-  permissions: ['storage', 'debugger'],
+  // Keep only what's required + cookies for enhanced response data
+  permissions: ['storage', 'debugger', 'cookies'],
 
   // Background script (optional but useful if you plan to attach debugger, etc.)
   background: {

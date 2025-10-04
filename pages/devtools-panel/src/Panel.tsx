@@ -7,8 +7,8 @@ import { TabBar } from './components/TabBar';
 import { RequestForm } from './components/RequestForm';
 import { ResponseView } from './components/ResponseView';
 import { FetchCurlModal } from './components/FetchCurlModal';
-import { HttpRequest } from './types';
-import { HttpClient } from './utils/httpClient';
+import { HttpRequest, HttpResponse } from './types';
+import { chromeHttpClient } from './utils/chromeHttpClient';
 
 const Panel = () => {
   const [activeContentTab, setActiveContentTab] = useState<'request' | 'response'>('request');
@@ -93,6 +93,59 @@ const Panel = () => {
     }
   }, [activeTabId, clearRequest]);
 
+  // Convert HttpRequest to Chrome Extension format and execute
+  const executeRequestWithChromeClient = useCallback(async (request: HttpRequest): Promise<HttpResponse> => {
+    // Build full URL with query parameters
+    const url = new URL(request.url);
+    if (request.params) {
+      Object.entries(request.params).forEach(([key, value]) => {
+        if (key.trim() && value !== undefined) {
+          url.searchParams.set(key, value);
+        }
+      });
+    }
+
+    // Prepare headers
+    const headers: Record<string, string> = {};
+    if (request.headers) {
+      Object.entries(request.headers).forEach(([key, value]) => {
+        if (key.trim() && value !== undefined) {
+          headers[key.trim()] = value;
+        }
+      });
+    }
+
+    // Prepare fetch options
+    const fetchOptions: RequestInit = {
+      method: request.method,
+      headers,
+    };
+
+    // Add body for methods that support it
+    const methodsWithBody = ['POST', 'PUT', 'PATCH', 'DELETE'];
+    if (methodsWithBody.includes(request.method.toUpperCase()) && request.body) {
+      fetchOptions.body = request.body;
+    }
+
+    // Execute request through Chrome Extension client
+    const result = await chromeHttpClient.fetch(url.toString(), fetchOptions);
+
+    // Convert result to HttpResponse format
+    return {
+      status: result.status,
+      statusText: result.statusText,
+      headers: result.headers,
+      body: result.body,
+      size: result.size,
+      time: result.time,
+      url: result.url,
+      ok: result.ok,
+      cookies: result.cookies,
+      contentType: result.contentType,
+      duration: result.time, // Alias for compatibility
+    };
+  }, []);
+
   const handleExecute = useCallback(async () => {
     if (!activeTab || !activeTabId) return;
     
@@ -110,6 +163,7 @@ const Panel = () => {
         url: '',
         ok: false,
         error: 'URL is required',
+        cookies: [],
       });
       setActiveContentTab('response');
       return;
@@ -119,8 +173,8 @@ const Panel = () => {
     updateTab(activeTabId, { isLoading: true, lastError: undefined });
     
     try {
-      // Execute the HTTP request
-      const response = await HttpClient.executeRequest(request);
+      // Execute the HTTP request using Chrome Extension client
+      const response = await executeRequestWithChromeClient(request);
       
       // Update response in tab
       updateResponse(activeTabId, response);
@@ -146,6 +200,7 @@ const Panel = () => {
         url: request.url,
         ok: false,
         error: errorMessage,
+        cookies: [],
       });
       
       setActiveContentTab('response');

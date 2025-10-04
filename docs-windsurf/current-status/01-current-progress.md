@@ -446,11 +446,16 @@ curl -X POST "https://api.example.com/login" \
    - **Information Density**: More efficient use of screen real estate
    - **Professional Appearance**: Matches real Chrome DevTools spacing
 
-#### **🚀 IN PROGRESS: HTTP Request Engine (75% Complete)**
-3. **✅ HTTP Client Implementation**: Complete HttpClient class with request execution
-4. **✅ Request Validation**: URL validation and error handling
-5. **✅ Loading States**: Execute button shows loading state during requests
-6. **✅ Response Integration**: Response data properly stored in tab state
+#### **🚀 IN PROGRESS: HTTP Request Engine (0% Complete)**
+1. Create a form for displying the response object from the fetch request.
+2. Use the following approch to make the fetch request.
+    1. use the [../design/02-inpiration-fetch-architecture.md](../design/02-inpiration-fetch-architecture.md) as inspiration.
+
+
+3. **HTTP Client Implementation**: Complete HttpClient class with request execution
+4. **Request Validation**: URL validation and error handling
+5. **Loading States**: Execute button shows loading state during requests
+6. **Response Integration**: Response data properly stored in tab state
 7. **⏳ Response Display Enhancement**: Currently updating ResponseView component
 
 #### **Technical Achievements:**
