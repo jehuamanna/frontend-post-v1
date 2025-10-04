@@ -1,7 +1,7 @@
 {
   "name": "@extension/devtools-panel",
   "version": "0.5.0",
-  "description": "chrome extension - devtools panel",
+  "description": "Frontend Post - DevTools panel for HTTP API testing",
   "type": "module",
   "private": true,
   "sideEffects": true,

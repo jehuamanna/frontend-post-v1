@@ -1,32 +1,27 @@
 <div align="center">
 
-<picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/99cb6303-64e4-4bed-bf3f-35735353e6de" />
-    <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/a5dbf71c-c509-4c4f-80f4-be88a1943b0a" />
-    <img alt="Logo" src="https://github.com/user-attachments/assets/99cb6303-64e4-4bed-bf3f-35735353e6de" />
-</picture>
+# 🚀 Frontend Post
+
+**A powerful HTTP API testing tool for Chrome DevTools**
 
 ![](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![](https://img.shields.io/badge/Typescript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![](https://badges.aleen42.com/src/vitejs.svg)
+![](https://img.shields.io/badge/Chrome-Extension-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
 
-![GitHub action badge](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite/actions/workflows/build-zip.yml/badge.svg)
-![GitHub action badge](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite/actions/workflows/lint.yml/badge.svg)
-
-<a href="https://discord.gg/4ERQ6jgV9a" target="_blank"><img src="https://discord.com/api/guilds/1263404974830915637/widget.png"/></a>
-
-> This boilerplate
-> has [Legacy version](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite/tree/legacy)
+*Test, debug, and replay HTTP requests directly from Chrome DevTools*
 
 </div>
 
-> [!NOTE]
-> This project is listed in the [Awesome Vite](https://github.com/vitejs/awesome-vite)
+## ✨ Features
 
-> [!TIP]
-> Share storage state between all pages
->
-> https://github.com/user-attachments/assets/3b8e189f-6443-490e-a455-4f9570267f8c
+- 🎯 **DevTools Integration** - Seamlessly integrated into Chrome DevTools
+- 📝 **Request Builder** - Create HTTP requests with intuitive tabbed interface
+- 🔄 **Import/Export** - Support for fetch() and cURL command import
+- 📊 **Response Viewer** - Organized response display with headers, body, and cookies
+- 💾 **Persistent Tabs** - Tab management with drag & drop reordering
+- 🎨 **Clean UI** - Minimalistic design following Chrome DevTools aesthetics
+- ⚡ **Real-time Testing** - Execute requests and view responses instantly
 
 ## Table of Contents
 

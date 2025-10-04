@@ -344,7 +344,7 @@ const Panel = () => {
 
       {/* Bottom layer for footer */}
       <div className="h-8 border-t border-gray-300 px-3 text-xs text-gray-600 flex items-center justify-between bg-gray-100">
-        <span className="font-medium">FrontendPost - API Testing Tool</span>
+        <span className="font-medium">Frontend Post - API Testing Tool</span>
         <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
           Ready
         </span>

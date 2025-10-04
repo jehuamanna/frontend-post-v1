@@ -1,7 +1,7 @@
 {
   "name": "@extension/devtools",
   "version": "0.5.0",
-  "description": "chrome extension - devtools",
+  "description": "Frontend Post - DevTools integration page",
   "type": "module",
   "private": true,
   "sideEffects": true,
