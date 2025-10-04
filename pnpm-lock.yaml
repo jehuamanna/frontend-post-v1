@@ -366,6 +366,9 @@ importers:
       '@codemirror/lang-javascript':
         specifier: ^6.2.2
         version: 6.2.4
+      '@codemirror/view':
+        specifier: ^6.38.4
+        version: 6.38.4
       '@extension/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n

@@ -20,12 +20,13 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/view": "^6.38.4",
     "@extension/i18n": "workspace:*",
     "@extension/shared": "workspace:*",
     "@extension/storage": "workspace:*",
     "@extension/ui": "workspace:*",
-    "@uiw/react-codemirror": "^4.23.6",
-    "@codemirror/lang-javascript": "^6.2.2"
+    "@uiw/react-codemirror": "^4.23.6"
   },
   "devDependencies": {
     "@extension/tailwindcss-config": "workspace:*",

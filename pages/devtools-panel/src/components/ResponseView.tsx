@@ -216,13 +216,50 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
           {activeTab === 'headers' && (
             <div className="h-full">
               <div className="h-full border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
-                <div className="space-y-2 text-sm">
-                  {Object.entries(response.headers).map(([key, value]) => (
-                    <div key={key}>
-                      <span className="font-semibold text-gray-900">{key}:</span>{' '}
-                      <span className="text-gray-700">{value}</span>
+                <div className="space-y-2">
+                  {Object.entries(response.headers).map(([key, value], index) => (
+                    <div key={`${key}-${index}`} className="flex gap-2 items-center">
+                      <div className="flex-1 relative">
+                        <input
+                          value={key}
+                          readOnly
+                          className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs bg-white text-gray-900 focus:ring-1 focus:ring-gray-900 focus:border-gray-900 outline-none"
+                          placeholder="Header name"
+                        />
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(key)}
+                          className="absolute right-1 top-1 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Copy header name"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex-1 relative">
+                        <input
+                          value={value}
+                          readOnly
+                          className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs bg-white text-gray-900 focus:ring-1 focus:ring-gray-900 focus:border-gray-900 outline-none"
+                          placeholder="Header value"
+                        />
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(value)}
+                          className="absolute right-1 top-1 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Copy header value"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  {Object.keys(response.headers).length === 0 && (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      No headers in response
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
