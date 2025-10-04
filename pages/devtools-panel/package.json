@@ -23,7 +23,9 @@
     "@extension/i18n": "workspace:*",
     "@extension/shared": "workspace:*",
     "@extension/storage": "workspace:*",
-    "@extension/ui": "workspace:*"
+    "@extension/ui": "workspace:*",
+    "@uiw/react-codemirror": "^4.23.6",
+    "@codemirror/lang-javascript": "^6.2.2"
   },
   "devDependencies": {
     "@extension/tailwindcss-config": "workspace:*",
