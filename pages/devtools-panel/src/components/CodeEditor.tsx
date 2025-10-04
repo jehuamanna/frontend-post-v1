@@ -2,6 +2,7 @@
 import React from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
+import './CodeEditor.css';
 
 interface CodeEditorProps {
     value?: string;
@@ -12,6 +13,7 @@ interface CodeEditorProps {
     className?: string;
     readOnly?: boolean;
     formatJson?: boolean;
+    wordWrap?: boolean;
 }
 
 function CodeEditor({
@@ -22,11 +24,27 @@ function CodeEditor({
     height = "200px",
     className = "",
     readOnly = false,
-    formatJson = false
+    formatJson = false,
+    wordWrap = false
 }: CodeEditorProps) {
     const [internalValue, setInternalValue] = React.useState("console.log('hello world!');");
+    const [containerHeight, setContainerHeight] = React.useState<number>(400);
+    const containerRef = React.useRef<HTMLDivElement>(null);
 
     const value = propValue !== undefined ? propValue : internalValue;
+
+    React.useEffect(() => {
+        const updateHeight = () => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setContainerHeight(rect.height - 2); // Subtract border
+            }
+        };
+
+        updateHeight();
+        window.addEventListener('resize', updateHeight);
+        return () => window.removeEventListener('resize', updateHeight);
+    }, []);
 
     const onChange = React.useCallback((val: string, viewUpdate?: any) => {
         if (propOnChange) {
@@ -76,21 +94,30 @@ function CodeEditor({
                     </button>
                 </div>
             )}
-            <div className="flex-1">
-                <CodeMirror
-                    value={value}
-                    height="100%"
-                    extensions={extensions}
-                    onChange={onChange}
-                    editable={!readOnly}
-                    basicSetup={{
-                        lineNumbers: true,
-                        foldGutter: true,
-                        dropCursor: false,
-                        allowMultipleSelections: false,
+            <div className="flex-1" style={{ height: '100%' }} ref={containerRef}>
+                <div
+                    className={`codemirror-container ${wordWrap ? 'word-wrap' : ''}`}
+                    style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '4px',
+                        position: 'relative'
                     }}
-                    style={{ height: "100%", flex: 1 }}
-                />
+                >
+                    <CodeMirror
+                        value={value}
+                        extensions={extensions}
+                        onChange={onChange}
+                        editable={!readOnly}
+                        basicSetup={{
+                            lineNumbers: true,
+                            foldGutter: true,
+                            dropCursor: false,
+                            allowMultipleSelections: false,
+                            searchKeymap: true,
+                            tabSize: 2,
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );
