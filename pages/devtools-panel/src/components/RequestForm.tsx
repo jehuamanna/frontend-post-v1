@@ -68,7 +68,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         <select 
           value={request.method}
           onChange={(e) => handleMethodChange(e.target.value as HttpMethod)}
-          className="px-4 py-3 border border-gray-300 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
+          className="pl-4 pr-8 py-3 border border-gray-300 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
         >
           <option value="GET">GET</option>
           <option value="POST">POST</option>
