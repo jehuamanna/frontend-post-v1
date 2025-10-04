@@ -125,6 +125,16 @@ export const useTabs = () => {
     );
   }, []);
 
+  const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
+    setTabs(prevTabs => {
+      const newTabs = [...prevTabs];
+      const draggedTab = newTabs[fromIndex];
+      newTabs.splice(fromIndex, 1);
+      newTabs.splice(toIndex, 0, draggedTab);
+      return newTabs;
+    });
+  }, []);
+
   // Auto-save functionality (debounced)
   useEffect(() => {
     if (!isLoaded) return; // Don't save until initial load is complete
@@ -147,5 +157,6 @@ export const useTabs = () => {
     updateTab,
     updateRequest,
     updateResponse,
+    reorderTabs,
   };
 };

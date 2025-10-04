@@ -61,22 +61,16 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
   -H "Authorization: Bearer token" \\
   -d '{
     "name": "John Doe",
-    "email": "john@example.com"
   }'`;
   };
 
   const parseFetchCode = (fetchCode: string): Partial<HttpRequest> | null => {
     try {
-      console.log('Parsing fetch code:', fetchCode);
       // Simple regex-based parsing for fetch calls
-      const urlMatch = fetchCode.match(/fetch\s*\(\s*['"`]([^'"`]+)['"`]/);
-      const methodMatch = fetchCode.match(/method\s*:\s*['"`](\w+)['"`]/i);
+      const urlMatch = fetchCode.match(/fetch\s*\(\s*['"\`]([^'"\`]+)['"\`]/);
+      const methodMatch = fetchCode.match(/method\s*:\s*['"\`](\w+)['"\`]/i);
       const bodyMatch = fetchCode.match(/body\s*:\s*JSON\.stringify\s*\(\s*({[\s\S]*?})\s*\)/);
       const headersMatch = fetchCode.match(/headers\s*:\s*({[\s\S]*?})/);
-
-      console.log('URL match:', urlMatch);
-      console.log('Method match:', methodMatch);
-      console.log('Headers match:', headersMatch);
 
       const request: Partial<HttpRequest> = {};
 
@@ -150,7 +144,6 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
 
   const parseCurlCommand = (curlCommand: string): Partial<HttpRequest> | null => {
     try {
-      console.log('Parsing cURL command:', curlCommand);
       const request: Partial<HttpRequest> = {
         method: 'GET',
         headers: {},

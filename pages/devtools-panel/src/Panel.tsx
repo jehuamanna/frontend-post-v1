@@ -26,6 +26,7 @@ const Panel = () => {
     switchTab,
     updateRequest,
     updateTab,
+    reorderTabs,
   } = useTabs();
 
   const handleContentTabClick = useCallback((tab: 'request' | 'response') => {
@@ -51,7 +52,6 @@ const Panel = () => {
   }, []);
 
   const handleModalSave = useCallback((rawCommand: string, parsedRequest?: Partial<HttpRequest>, commandType?: 'fetch' | 'curl') => {
-    console.log('Modal save called with:', { rawCommand, parsedRequest, commandType });
     if (activeTabId) {
       // Update the raw command and detected type
       updateTab(activeTabId, {
@@ -64,7 +64,6 @@ const Panel = () => {
       
       // If we successfully parsed the request, update the request data
       if (parsedRequest) {
-        console.log('Updating request with parsed data:', parsedRequest);
         updateRequest(activeTabId, parsedRequest);
         
         // Update tab name if URL is available
@@ -81,21 +80,15 @@ const Panel = () => {
   }, [activeTabId, activeTab, updateTab, updateRequest]);
 
   const handleClear = useCallback(() => {
-    console.log('Clear button clicked, activeTabId:', activeTabId);
     if (activeTabId) {
       // Complete clear - reset all fields to defaults
-      // Match the default headers that RequestForm expects
       const clearData = {
         url: '',
         method: 'GET' as const,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': ''
-        },
+        headers: {}, // Empty headers object
         body: '',
         params: {}
       };
-      console.log('Clearing with data:', clearData);
       updateRequest(activeTabId, clearData);
       
       // Clear raw command and reset tab name
@@ -131,6 +124,7 @@ const Panel = () => {
         onTabClick={switchTab}
         onTabClose={closeTab}
         onNewTab={handleNewTab}
+        onTabReorder={reorderTabs}
       />
 
       {/* Second layer for action bar */}

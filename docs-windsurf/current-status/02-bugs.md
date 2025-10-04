@@ -65,6 +65,28 @@ React.useEffect(() => {
 
 **Result**: Both Clear button and New Tab button now work correctly with proper field reset.
 
+### **Bug 3: Stale Headers in UI After Clear**
+**Root Cause**: 
+- RequestForm was initializing with default headers `[['Content-Type', 'application/json'], ['Authorization', '']]`
+- Clear function was setting `headers: {}` but UI wasn't syncing properly
+- Inconsistent default state between components
+
+**Solution Applied**:
+1. **Consistent Empty State** (`src/components/RequestForm.tsx`):
+   - Changed initial headers to empty state: `[['', '']]`
+   - Updated useEffect to reset to empty headers when cleared
+   - Ensured proper array spreading for React change detection
+
+2. **Aligned Clear Function** (`src/Panel.tsx`):
+   - Clear function sets `headers: {}` (empty object)
+   - Matches the default request structure in tabUtils
+
+3. **Force Component Re-render**:
+   - Added dynamic key prop to RequestForm for complete reset
+   - Ensures fresh component state on significant data changes
+
+**Result**: Headers and query parameters now properly clear and show empty state when Clear button is pressed.
+
 
 
 ## ✅ FIXED: Layout and Footer Positioning Bug

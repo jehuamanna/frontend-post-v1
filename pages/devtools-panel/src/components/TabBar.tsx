@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Tab } from '../types';
 import { getMethodColor, truncateTabName, formatTabName } from '../utils/tabUtils';
 
@@ -8,6 +8,7 @@ interface TabBarProps {
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
   onNewTab: () => void;
+  onTabReorder?: (fromIndex: number, toIndex: number) => void;
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
@@ -16,11 +17,26 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTabClick,
   onTabClose,
   onNewTab,
+  onTabReorder,
 }) => {
+  const [draggedTab, setDraggedTab] = useState<number | null>(null);
+  const [dragOverTab, setDragOverTab] = useState<number | null>(null);
   return (
     <div className="flex items-center border-b border-gray-300 px-3 py-2 bg-gray-100">
-      <div className="flex space-x-2 overflow-x-auto">
-        {tabs.map((tab) => {
+      <div 
+        className="flex space-x-2 overflow-x-auto relative" 
+        style={{ contain: 'layout' }}
+        onDragOver={(e) => {
+          // Only allow drops within the tab container
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(e) => {
+          // Prevent drops outside of individual tabs
+          e.preventDefault();
+        }}
+      >
+        {tabs.map((tab, index) => {
           const isActive = tab.id === activeTabId;
           const displayName = truncateTabName(formatTabName(tab.name, tab.data.request.method));
           const methodColorClass = getMethodColor(tab.data.request.method);
@@ -28,12 +44,64 @@ export const TabBar: React.FC<TabBarProps> = ({
           return (
             <div
               key={tab.id}
-              className={`group relative flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors cursor-pointer ${
+              draggable={onTabReorder ? true : false}
+              className={`group relative flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                onTabReorder ? 'cursor-move' : 'cursor-pointer'
+              } ${
                 isActive
                   ? 'bg-white border border-gray-300 shadow-sm font-medium text-gray-900'
                   : 'text-gray-600 hover:bg-white hover:border-gray-300 border border-transparent'
+              } ${
+                draggedTab === index ? 'opacity-50' : ''
+              } ${
+                dragOverTab === index && draggedTab !== index ? 'border-l-4 border-blue-500' : ''
               }`}
               onClick={() => onTabClick(tab.id)}
+              onDragStart={(e) => {
+                if (!onTabReorder) return;
+                setDraggedTab(index);
+                e.dataTransfer.effectAllowed = 'move';
+                
+                // Create a transparent 1x1 pixel drag image to hide the default ghost
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                  ctx.globalAlpha = 0;
+                  ctx.fillRect(0, 0, 1, 1);
+                }
+                e.dataTransfer.setDragImage(canvas, 0, 0);
+                e.dataTransfer.setData('text/plain', '');
+              }}
+              onDragOver={(e) => {
+                if (!onTabReorder) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDragOverTab(index);
+              }}
+              onDragLeave={(e) => {
+                // Only clear drag over if we're actually leaving the tab area
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+                if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                  setDragOverTab(null);
+                }
+              }}
+              onDrop={(e) => {
+                if (!onTabReorder) return;
+                e.preventDefault();
+                if (draggedTab === null || draggedTab === index) return;
+                
+                onTabReorder(draggedTab, index);
+                setDraggedTab(null);
+                setDragOverTab(null);
+              }}
+              onDragEnd={() => {
+                setDraggedTab(null);
+                setDragOverTab(null);
+              }}
             >
               {/* Status indicator */}
               <div className="flex items-center gap-2">
@@ -64,6 +132,11 @@ export const TabBar: React.FC<TabBarProps> = ({
               <span className={`px-2 py-0.5 text-xs font-medium rounded border ${methodColorClass}`}>
                 {tab.data.request.method}
               </span>
+              
+              {/* Drag handle */}
+              {onTabReorder && (
+                <span className="ml-1 text-xs text-gray-400">⋮⋮</span>
+              )}
 
               {/* Close button */}
               {tabs.length > 1 && (
