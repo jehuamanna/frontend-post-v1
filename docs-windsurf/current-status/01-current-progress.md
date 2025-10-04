@@ -233,22 +233,62 @@ pages/devtools-panel/src/
 
 ### **🚀 CURRENT SPRINT: Ready for Next Phase**
 
-### **Curl and Fetch Parser** (on hold)
-*** Parse fetch and curl commands into request configuration***
-- The url should be extracted from the command and displayed in the url input field.
-- The method should be extracted from the command and displayed in the method input field as well as the tab name.
-- The headers should be extracted from the command and displayed in the headers input field dynamically with each header name and  header value being populated.
-- The body should be extracted from the command and displayed in the body input field. The body must be json parsed and displayed in the body input field.
+### **Curl and Fetch Parser** (current sprint)
+**🎯 Sprint Goal**: Parse fetch and curl commands into complete request configuration
+
+#### **Core Requirements:**
+- ✅ **URL Extraction**: Extract from command → populate URL input field
+- ✅ **Method Extraction**: Extract from command → populate method field + update tab name
+- ❌ **Headers Extraction**: Extract from command → dynamically populate headers section
+- ❌ **Body Extraction**: Extract from command → JSON parse and populate body field
+- ❌ **🆕 Query Parameters**: Extract URL params → populate new query parameters section
+
+#### **UI Enhancements Needed:**
+1. **Query Parameters Section**: Add new UI component in RequestForm (similar to Headers)
+2. **Dynamic Header Population**: Fix synchronization between parser and RequestForm
+3. **JSON Body Formatting**: Add validation and pretty-printing for body content
+4. **Parser Enhancement**: Handle complex cURL formats and edge cases
+
+#### **Testing Strategy:**
+**Phase 1: Manual Testing (Immediate)**
+```bash
+# Test Cases Collection:
+# Basic cURL with query params
+curl "https://api.example.com/users?page=1&limit=10" -H "Authorization: Bearer token"
+
+# Complex cURL with body
+curl -X POST "https://api.example.com/users?active=true" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer xyz" \
+  -d '{"name": "John", "email": "john@example.com"}'
+
+# Fetch with query params
+fetch('https://api.example.com/users?page=1&limit=10', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'John' })
+})
+```
+
+**Phase 2: Unit Testing (Post-implementation)**
+- Jest tests for parser functions (cURL and fetch)
+- Validation tests for query parameter extraction
+- Edge case handling (malformed URLs, special characters)
+
+**Phase 3: Integration Testing (Future)**
+- End-to-end workflow testing
+- UI population verification
+- Cross-browser compatibility
 
 
 ### **SPRINT 2: HTTP Request Engine** (on hold)
 **🎯 Next Sprint Goal**: Implement actual HTTP request execution and response handling
 1. **HTTP Request Engine**: Implement actual request execution
-2. **cURL Parser**: Parse cURL commands into request configuration
-3. **Fetch Parser**: Parse fetch commands into request configuration
-4. **Basic Response Handling**: Display actual HTTP responses
+2. **Response Processing**: Handle and display HTTP responses
+3. **Error Handling**: Proper error states and messaging
+4. **Request Queue**: Manage multiple concurrent requests
 
-## backlogs:
+## **📋 Backlogs:**
 
 
 ### **SPRINT 3-4: Chrome Extension & Persistence** (Short Term)
@@ -262,6 +302,46 @@ pages/devtools-panel/src/
 2. **Advanced Response Viewers**: JSON/XML/HTML/Text viewers
 3. **Export Functionality**: Download responses to files
 4. **Performance Metrics**: Request timing and size analysis
+
+### **SPRINT 7: Testing & Quality Assurance** (Long Term)
+**🎯 Goal**: Comprehensive testing framework and quality assurance
+
+#### **Automated Testing Suite:**
+1. **Unit Tests**: Parser functions, utility functions, data transformations
+2. **Component Tests**: React component behavior, user interactions
+3. **Integration Tests**: End-to-end workflows, API interactions
+4. **Performance Tests**: Memory usage, rendering performance, large datasets
+
+#### **Testing Tools & Framework:**
+- **Jest**: Unit and integration testing
+- **React Testing Library**: Component testing
+- **Playwright/Cypress**: E2E testing for Chrome extension
+- **Chrome Extension Testing**: DevTools panel integration tests
+
+#### **Quality Metrics:**
+- **Code Coverage**: Target 80%+ coverage for critical paths
+- **Performance Benchmarks**: Load time, memory usage, response handling
+- **Accessibility Testing**: WCAG compliance, keyboard navigation
+- **Cross-browser Testing**: Chrome, Edge, Firefox DevTools compatibility
+
+#### **Test Data & Scenarios:**
+```typescript
+// Comprehensive test cases for parser validation
+const testScenarios = {
+  curlCommands: [
+    'curl "https://api.example.com/users?page=1&limit=10"',
+    'curl -X POST "https://api.com/users" -H "Content-Type: application/json" -d \'{"name":"John"}\'',
+    'curl --request GET --url "https://api.com/search?q=test&sort=date" --header "Authorization: Bearer token"'
+  ],
+  fetchCommands: [
+    'fetch("https://api.example.com/users?page=1")',
+    'fetch("https://api.com/users", { method: "POST", headers: {...}, body: JSON.stringify({...}) })'
+  ],
+  edgeCases: [
+    'Malformed URLs', 'Special characters in parameters', 'Empty bodies', 'Invalid JSON'
+  ]
+};
+```
 
 ## **🔧 Development Environment**
 
