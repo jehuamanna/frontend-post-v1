@@ -16,3 +16,5 @@ update [prd/04-system-design.md] file with the system design of the project.
 2. Always consult me before making any changes to the code base.
 
 3. Take up the next sprint tasks only after I have given the go signal. It should be taken from [current-status/01-current-progress.md] file.
+
+4. When you are asked to take look at a bug, dont start to make any changes to the code base. Suggest me possible changes to be made. Also after every fix, write a detailed documentation and RCA of that bug in that section. This is the file you need to consult. [current-status/02-bugs.md]

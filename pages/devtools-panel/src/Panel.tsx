@@ -154,24 +154,28 @@ const Panel = () => {
         </div>
 
         {/* Request tab content */}
-        <div className={`flex-1 min-h-0 p-6 bg-white ${activeContentTab !== 'request' ? 'hidden' : ''}`}>
-          {activeTab && (
-            <RequestForm
-              request={activeTab.data.request}
-              onRequestChange={handleRequestChange}
-            />
-          )}
+        <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'request' ? 'hidden' : ''}`}>
+          <div className="p-6 bg-white h-full">
+            {activeTab && (
+              <RequestForm
+                request={activeTab.data.request}
+                onRequestChange={handleRequestChange}
+              />
+            )}
+          </div>
         </div>
 
         {/* Response tab content */}
-        <div className={`flex-1 min-h-0 p-6 bg-white ${activeContentTab !== 'response' ? 'hidden' : ''}`}>
-          {activeTab && (
-            <ResponseView
-              response={activeTab.data.response}
-              isLoading={activeTab.isLoading}
-              error={activeTab.lastError}
-            />
-          )}
+        <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'response' ? 'hidden' : ''}`}>
+          <div className="p-6 bg-white h-full">
+            {activeTab && (
+              <ResponseView
+                response={activeTab.data.response}
+                isLoading={activeTab.isLoading}
+                error={activeTab.lastError}
+              />
+            )}
+          </div>
         </div>
       </div>
 

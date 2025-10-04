@@ -1,6 +1,35 @@
 # Current bugs
 
-Make the  fooder staty at the bottom of the page. The request na reposne should be always in the  between of the top page controls and footer. There should be a scrollable area for the request and response vertically.
+## ✅ FIXED: Layout and Footer Positioning Bug
+
+**Issue**: Footer was overlapping the request/response content area. The request and response content was spilling over the bottom of the page without proper scrollable areas.
+
+**Root Cause**: 
+- Content areas lacked proper `overflow-auto` styling
+- Layout structure didn't properly constrain content height
+- Headers section in RequestForm needed scrollable container
+
+**Solution Applied** (2025-10-04 at 14:33):
+
+### **Code Changes Made**:
+
+1. **Fixed Panel Layout** (`src/Panel.tsx`):
+   - Added `overflow-auto` to request/response content containers
+   - Wrapped content in proper scrollable divs with `h-full`
+   - Maintained `flex-1 min-h-0` for proper flex behavior
+
+2. **Enhanced RequestForm Scrolling** (`src/components/RequestForm.tsx`):
+   - Added `overflow-hidden` to headers container
+   - Implemented `overflow-auto` for headers content area
+   - Ensured proper height constraints for scrollable sections
+
+### **Technical Details**:
+- Footer now stays fixed at bottom of viewport
+- Request/Response content areas are properly constrained between top controls and footer
+- Both Headers and Body sections have independent vertical scrolling
+- Layout maintains responsiveness across different screen sizes
+
+**Status**: ✅ **RESOLVED** - Footer stays at bottom, content areas have proper vertical scrolling.
 
 
 ## ✅ FIXED: Modal State Leakage Bug

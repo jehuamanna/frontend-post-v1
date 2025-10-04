@@ -92,38 +92,40 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         {/* Headers section */}
         <div className="flex flex-col min-h-0">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Headers</h3>
-          <div className="flex-1 min-h-0 border border-gray-300 rounded-md p-4 bg-gray-50 shadow-sm">
-            <div className="space-y-3">
-              {headers.map(([key, value], index) => (
-                <div key={index} className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    value={key}
-                    onChange={(e) => handleHeaderChange(index, e.target.value, value)}
-                    placeholder="Header name"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
-                  />
-                  <input
-                    value={value}
-                    onChange={(e) => handleHeaderChange(index, key, e.target.value)}
-                    placeholder="Header value"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
-                  />
-                  {headers.length > 1 && (
-                    <button
-                      onClick={() => removeHeader(index)}
-                      className="px-2 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button 
-                onClick={addHeader}
-                className="text-xs text-gray-600 hover:text-gray-900 font-medium"
-              >
-                + Add Header
-              </button>
+          <div className="flex-1 min-h-0 border border-gray-300 rounded-md bg-gray-50 shadow-sm overflow-hidden">
+            <div className="h-full overflow-auto p-4">
+              <div className="space-y-3">
+                {headers.map(([key, value], index) => (
+                  <div key={index} className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      value={key}
+                      onChange={(e) => handleHeaderChange(index, e.target.value, value)}
+                      placeholder="Header name"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
+                    />
+                    <input
+                      value={value}
+                      onChange={(e) => handleHeaderChange(index, key, e.target.value)}
+                      placeholder="Header value"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
+                    />
+                    {headers.length > 1 && (
+                      <button
+                        onClick={() => removeHeader(index)}
+                        className="px-2 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button 
+                  onClick={addHeader}
+                  className="text-xs text-gray-600 hover:text-gray-900 font-medium"
+                >
+                  + Add Header
+                </button>
+              </div>
             </div>
           </div>
         </div>
