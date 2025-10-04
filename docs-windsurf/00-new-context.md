@@ -1,4 +1,4 @@
-read all the [prd/01-vision.md], [prd/02-progress.md], [prd/03-ui-design.md], [prd/04-system-design.md], [current-status/01-current-progress.md] files and understand the context of the project.
+read all the [prd/01-vision.md], [prd/02-progress.md], [prd/03-ui-design.md], [prd/04-system-design.md], [current-status/01-current-progress.md] files and understand the context of the project. also read [01-operations.md] file.
 
 update [current-status/01-current-progress.md] file with the current progress of the project.
 
