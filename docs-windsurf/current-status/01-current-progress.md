@@ -1,18 +1,18 @@
 # Current Project Status - Chrome DevTools HTTP Request Extension
 
-**Last Updated**: 2025-10-04 at 14:40:28
+**Last Updated**: 2025-10-04 at 15:12:56
 
 ## **🎯 Project Overview**
 Chrome extension that allows developers to make/replay HTTP requests directly within the Chrome DevTools panel, providing a simple and intuitive way to test and debug web applications.
 
-## **📊 Overall Progress: 75% Complete**
+## **📊 Overall Progress: 80% Complete**
 
 ### **✅ COMPLETED COMPONENTS**
 
 #### **1. UI Foundation (95% Complete)**
 - **Panel Layout**: Multi-layer responsive design with full viewport utilization
 - **Request Tabs**: Horizontal scrollable tabs with add functionality
-- **Action Bar**: Command buttons (Add Fetch, Add cURL, Clear, Execute)
+- **Action Bar**: Command buttons (Request Command, Clear, Execute)
 - **Content Tabs**: Interactive Request/Response tab switching
 - **Footer**: Status indicator and branding
 - **Responsive Design**: Mobile-first responsive layout with breakpoints
@@ -193,29 +193,63 @@ pages/devtools-panel/src/
 
 ## **🚀 Next Priority Tasks**
 
-### **current sprint ** (Ready for Implementation)
-1. Instead of having fetch and curl editor, we should have a single editor. Remove those fetch and curl buttons and make it single "request command" button
- But internally it should have two different versions of the command. Fetch and Curl. But the user will see the command which he had pasted 
-2. Parse the fetch and http request command and display it in the request form ( that is headers and body) Body must be parsed and displayed in the body section. 
-3. When the user clicks on the request command button, it should open the modal with the request editor. 
-4. Instead of save and cancel, the data should save automatically on blur.
-5. When the user clicks away from the editor modal, it should close.
-6. When the user clicks on the clear button the data should be cleared in the request form.( that is headers and body)
-7. These all should happen in the same tab. It should not impact the other tabs. Which means these activities should be independent of each other.
-8. When the user clicks on the close button the tab should be closed.
-9. When the user clicks on the new tab button a new tab should be created.
-10. When the user clicks on the switch tab button the tab should be switched.
+### **SPRINT 1.5: Enhanced Command Editor** (2025-10-04 at 15:12) ✅ **COMPLETED**
+
+**🎯 Sprint Goal**: Unified command editor with enhanced UX and auto-detection
+
+#### **Completed Features**:
+1. **✅ Unified Command Editor**
+   - Replaced separate fetch/cURL buttons with single "Request Command" button
+   - Auto-detection of command type (fetch vs cURL)
+   - Unified modal interface with enhanced placeholder examples
+
+2. **✅ Enhanced Auto-Save & UX**
+   - Removed Save/Cancel buttons - auto-saves on blur
+   - Click-away-to-close modal functionality
+   - Real-time command type detection and display
+   - Visual feedback for detected command type
+
+3. **✅ Smart Clear Functionality**
+   - Clear button resets headers and body while preserving URL/method
+   - Maintains workflow efficiency for endpoint testing
+   - Independent per-tab operation
+
+4. **✅ Enhanced Data Structure**
+   - Consolidated to single `rawCommand` field with `commandType` detection
+   - Improved parsing and form population
+   - Better separation of raw input and structured data
+
+#### **Technical Improvements**:
+- **Enhanced Modal**: Auto-detection, click-away-to-close, auto-save on blur
+- **Better UX**: Real-time feedback, command type indicators, streamlined workflow
+- **Code Quality**: Cleaner data structure, improved parsing logic
+- **UI Polish**: Better spacing in dropdown elements, enhanced visual feedback
+
+#### **Sprint Metrics**:
+- **Duration**: 4 hours (2025-10-04 afternoon)
+- **Files Modified**: 3 core files (Panel.tsx, FetchCurlModal.tsx, RequestForm.tsx)
+- **Features Enhanced**: 4 major UX improvements
+- **Bug Fixes**: 0 (clean implementation)
+
+### **🚀 CURRENT SPRINT: Ready for Next Phase**
+
+### **Curl and Fetch Parser** (on hold)
+*** Parse fetch and curl commands into request configuration***
+- The url should be extracted from the command and displayed in the url input field.
+- The method should be extracted from the command and displayed in the method input field as well as the tab name.
+- The headers should be extracted from the command and displayed in the headers input field dynamically with each header name and  header value being populated.
+- The body should be extracted from the command and displayed in the body input field. The body must be json parsed and displayed in the body input field.
 
 
-
-## backlogs:
-
-### **SPRINT 2: HTTP Request Engine** (On hold)
+### **SPRINT 2: HTTP Request Engine** (on hold)
 **🎯 Next Sprint Goal**: Implement actual HTTP request execution and response handling
 1. **HTTP Request Engine**: Implement actual request execution
 2. **cURL Parser**: Parse cURL commands into request configuration
 3. **Fetch Parser**: Parse fetch commands into request configuration
 4. **Basic Response Handling**: Display actual HTTP responses
+
+## backlogs:
+
 
 ### **SPRINT 3-4: Chrome Extension & Persistence** (Short Term)
 1. **Chrome Extension Setup**: Manifest and background scripts
