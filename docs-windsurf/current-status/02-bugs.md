@@ -1,5 +1,8 @@
 # Current bugs
 
+Make the  fooder staty at the bottom of the page. The request na reposne should be always in the  between of the top page controls and footer. There should be a scrollable area for the request and response vertically.
+
+
 ## ✅ FIXED: Modal State Leakage Bug
 
 **Issue**: When opening the cURL editor and inserting cURL text, then closing and opening the fetch editor, the same cURL text was visible in the fetch modal.
