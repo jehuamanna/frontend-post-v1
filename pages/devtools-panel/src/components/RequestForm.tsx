@@ -11,22 +11,29 @@ const bodyEditorTheme = EditorView.theme({
     backgroundColor: "white",
     color: "#1f2937",
     fontSize: "12px",
-    fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+    fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+    height: "100%"
   },
   ".cm-content": {
     backgroundColor: "white",
     caretColor: "#1f2937",
-    padding: "8px"
+    padding: "8px",
+    minHeight: "100%"
   },
   ".cm-focused": {
     backgroundColor: "white",
     outline: "1px solid #1f2937"
   },
+  ".cm-editor": {
+    height: "100%"
+  },
   ".cm-editor.cm-focused": {
     backgroundColor: "white"
   },
   ".cm-scroller": {
-    backgroundColor: "white"
+    backgroundColor: "white",
+    overflow: "auto",
+    maxHeight: "100%"
   },
   ".cm-gutters": {
     backgroundColor: "#f9fafb",
@@ -43,6 +50,15 @@ const bodyEditorTheme = EditorView.theme({
   },
   ".cm-activeLineGutter": {
     backgroundColor: "#f3f4f6"
+  },
+  ".cm-selectionBackground": {
+    backgroundColor: "#d1d5db !important"
+  },
+  ".cm-focused .cm-selectionBackground": {
+    backgroundColor: "#9ca3af !important"
+  },
+  ".cm-selectionMatch": {
+    backgroundColor: "#e5e7eb"
   }
 });
 
@@ -456,7 +472,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                       {headers.length > 1 && (
                         <button
                           onClick={() => removeHeader(index)}
-                          className="px-1.5 py-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                          className="px-1.5 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded transition-colors"
                         >
                           ×
                         </button>
@@ -527,7 +543,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                       {queryParams.length > 1 && (
                         <button
                           onClick={() => removeParam(index)}
-                          className="px-1.5 py-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                          className="px-1.5 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded transition-colors"
                         >
                           ×
                         </button>

@@ -121,6 +121,27 @@ interface ResponseViewProps {
   error?: string;
 }
 
+// Copy to clipboard utility
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return true;
+    } catch (fallbackErr) {
+      console.error('Failed to copy to clipboard:', fallbackErr);
+      return false;
+    }
+  }
+};
+
 export const ResponseView: React.FC<ResponseViewProps> = ({
   response,
   isLoading,
@@ -138,6 +159,24 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
   const [draggedTab, setDraggedTab] = useState<number | null>(null);
   const [dragOverTab, setDragOverTab] = useState<number | null>(null);
   const [htmlViewMode, setHtmlViewMode] = useState<'raw' | 'rendered'>('raw');
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Copy feedback timeout
+  useEffect(() => {
+    if (copyFeedback) {
+      const timer = setTimeout(() => setCopyFeedback(null), 2000);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [copyFeedback]);
+
+  // Copy handler for table cells
+  const handleCopyCell = async (text: string, cellType: string) => {
+    if (text && text !== '-') {
+      const success = await copyToClipboard(text);
+      setCopyFeedback(success ? `${cellType} copied!` : 'Copy failed');
+    }
+  };
 
   // Drag and drop handlers for tab reordering
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -354,7 +393,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
               } ${
                 draggedTab === index ? 'opacity-50' : ''
               } ${
-                dragOverTab === index ? 'bg-blue-100' : ''
+                dragOverTab === index ? 'bg-gray-100' : ''
               }`}
             >
               {tab.label}
@@ -481,12 +520,9 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                   {Object.entries(response.headers).map(([key, value], index) => (
                     <div key={`${key}-${index}`} className="flex gap-2 items-center">
                       <div className="flex-1 relative">
-                        <input
-                          value={key}
-                          readOnly
-                          className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs bg-white text-gray-900 focus:ring-1 focus:ring-gray-900 focus:border-gray-900 outline-none"
-                          placeholder="Header name"
-                        />
+                        <div className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs bg-gray-50 text-gray-900 font-mono cursor-default select-text">
+                          {key}
+                        </div>
                         <button
                           onClick={() => navigator.clipboard?.writeText(key)}
                           className="absolute right-1 top-1 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
@@ -498,12 +534,9 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                         </button>
                       </div>
                       <div className="flex-1 relative">
-                        <input
-                          value={value}
-                          readOnly
-                          className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs bg-white text-gray-900 focus:ring-1 focus:ring-gray-900 focus:border-gray-900 outline-none"
-                          placeholder="Header value"
-                        />
+                        <div className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs bg-gray-50 text-gray-900 font-mono cursor-default select-text break-all">
+                          {value}
+                        </div>
                         <button
                           onClick={() => navigator.clipboard?.writeText(value)}
                           className="absolute right-1 top-1 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
@@ -548,31 +581,84 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                           const parsedCookie = parseCookieString(cookieString);
                           return (
                             <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-xs font-mono text-gray-900 max-w-xs truncate" title={parsedCookie.name}>
+                              <td className="px-4 py-3 text-xs font-mono text-gray-900 max-w-xs truncate relative group" title={parsedCookie.name}>
                                 {parsedCookie.name}
+                                {parsedCookie.name && (
+                                  <button
+                                    onClick={() => handleCopyCell(parsedCookie.name, 'Cookie name')}
+                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all"
+                                    title="Copy cookie name"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-xs font-mono text-gray-700 max-w-xs truncate" title={parsedCookie.value}>
+                              <td className="px-4 py-3 text-xs font-mono text-gray-700 max-w-xs truncate relative group" title={parsedCookie.value}>
                                 {parsedCookie.value}
+                                {parsedCookie.value && (
+                                  <button
+                                    onClick={() => handleCopyCell(parsedCookie.value, 'Cookie value')}
+                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all"
+                                    title="Copy cookie value"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-xs text-gray-700">
+                              <td className="px-4 py-3 text-xs text-gray-700 relative group">
                                 {parsedCookie.domain || '-'}
+                                {parsedCookie.domain && (
+                                  <button
+                                    onClick={() => handleCopyCell(parsedCookie.domain!, 'Domain')}
+                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all"
+                                    title="Copy domain"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-xs text-gray-700">
+                              <td className="px-4 py-3 text-xs text-gray-700 relative group">
                                 {parsedCookie.path || '/'}
+                                <button
+                                  onClick={() => handleCopyCell(parsedCookie.path || '/', 'Path')}
+                                  className="absolute right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all"
+                                  title="Copy path"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                </button>
                               </td>
-                              <td className="px-4 py-3 text-xs text-gray-700">
+                              <td className="px-4 py-3 text-xs text-gray-700 relative group">
                                 {parsedCookie.expires || (parsedCookie.maxAge ? `Max-Age: ${parsedCookie.maxAge}` : 'Session')}
+                                {(parsedCookie.expires || parsedCookie.maxAge) && (
+                                  <button
+                                    onClick={() => handleCopyCell(parsedCookie.expires || `Max-Age: ${parsedCookie.maxAge}`, 'Expires')}
+                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all"
+                                    title="Copy expires"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                )}
                               </td>
                               <td className="px-4 py-3 text-xs">
                                 <div className="flex flex-wrap gap-1">
                                   {parsedCookie.httpOnly && (
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">HttpOnly</span>
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs border border-gray-300">HttpOnly</span>
                                   )}
                                   {parsedCookie.secure && (
-                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Secure</span>
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs border border-gray-300">Secure</span>
                                   )}
                                   {parsedCookie.sameSite && (
-                                    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs border border-gray-300">
                                       SameSite={parsedCookie.sameSite}
                                     </span>
                                   )}
@@ -586,16 +672,16 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                   </div>
                 ) : response.headers['set-cookie'] ? (
                   <div className="p-4">
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                    <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
                       <div className="flex">
                         <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                         </div>
                         <div className="ml-3">
-                          <h3 className="text-sm font-medium text-yellow-800">Raw Cookie Header</h3>
-                          <div className="mt-2 text-sm text-yellow-700">
+                          <h3 className="text-sm font-medium text-gray-800">Raw Cookie Header</h3>
+                          <div className="mt-2 text-sm text-gray-700">
                             <p className="font-mono text-xs break-all">{response.headers['set-cookie']}</p>
                           </div>
                         </div>
@@ -618,6 +704,13 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Copy Feedback */}
+      {copyFeedback && (
+        <div className="fixed top-4 right-4 bg-gray-100 border border-gray-400 text-gray-700 px-4 py-2 rounded-md shadow-lg z-50">
+          {copyFeedback}
+        </div>
+      )}
     </div>
   );
 };

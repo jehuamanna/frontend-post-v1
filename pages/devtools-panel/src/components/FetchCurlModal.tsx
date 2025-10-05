@@ -560,8 +560,8 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
 
             {/* Error message */}
             {error && (
-              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-600">{error}</p>
+              <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <p className="text-sm text-gray-600">{error}</p>
               </div>
             )}
 

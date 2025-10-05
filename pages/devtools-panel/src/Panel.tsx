@@ -564,26 +564,26 @@ const Panel = () => {
         >
           Clear
         </button>
-        <button 
-          onClick={handleExecute}
-          disabled={!activeTab?.data.request.url || activeTab?.isLoading}
-          className={`px-3 py-1.5 text-xs rounded transition-colors font-medium ${
-            !activeTab?.data.request.url || activeTab?.isLoading
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              : 'bg-gray-900 text-white hover:bg-black'
-          }`}
-        >
-          {activeTab?.isLoading ? 'Executing...' : 'Execute'}
-        </button>
-        
-        {/* Cancel button - only show when request is in progress */}
-        {activeTab?.isLoading && currentRequestId && (
+        {/* Execute/Cancel toggle button for specific tab */}
+        {activeTab?.isLoading && currentRequestId ? (
           <button
             onClick={handleCancelRequest}
-            className="px-3 py-1.5 text-xs border border-red-300 rounded hover:bg-red-50 transition-colors font-medium text-red-700 bg-white"
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white"
             title="Cancel current request"
           >
             Cancel
+          </button>
+        ) : (
+          <button 
+            onClick={handleExecute}
+            disabled={!activeTab?.data.request.url}
+            className={`px-3 py-1.5 text-xs rounded transition-colors font-medium ${
+              !activeTab?.data.request.url
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-gray-900 text-white hover:bg-black'
+            }`}
+          >
+            Execute
           </button>
         )}
       </div>
@@ -659,14 +659,14 @@ const Panel = () => {
       {/* Bottom layer for footer */}
       <div className="h-8 border-t border-gray-300 px-3 text-xs text-gray-600 flex items-center justify-between bg-gray-100">
         <span className="font-medium">Frontend Post - API Testing Tool</span>
-        <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
+        <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-800 border border-gray-200">
           Ready
         </span>
       </div>
 
       {/* Copy Feedback */}
       {copyFeedback && (
-        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-md shadow-lg z-50">
+        <div className="fixed top-4 right-4 bg-gray-100 border border-gray-400 text-gray-700 px-4 py-2 rounded-md shadow-lg z-50">
           {copyFeedback}
         </div>
       )}
