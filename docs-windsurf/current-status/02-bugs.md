@@ -154,14 +154,16 @@ React.useEffect(() => {
 
 
 
-## Bug list (current Sprint)
+## Feature  list (current Sprint)
 
-1. body of the request and response sections should be codemirror editor.
-2. Query parameters when edited must reflect in the url.
-3. If the response from the api is HTML then it should display both the raw html and parsed html in the response section.
-4. A button to copy the curl/fetch command of the modifed request parameters.
-5. Close button for the 'Request Command' modal.
-6. Ability to cancel an ongoing request.
-7. Cookies should be displayed in the response section as a table.
-8. Sometime fetch/curl request command does not show the parsed headers.
-9. Body content if json/html should be parsed and displayed in the response section as beautifyed. 
+1. body of the request and response sections should be either html/json parsed and beautified.
+2. While clicking on request command the pop  up is not appearing. It should appear to input fetch/curl command.
+3. The monitor tab should is a table.
+4. Table must be able to search filter requests based on url, method, status, time taken. 
+5. The monitor tab should have sorting option for url, method, status, time taken.
+6. On double click of the request in the monitor tab, it should open a new tab with the request. 
+7. The monitor tab should display the requests colorfully based on the status code.
+8. Filter should be based on GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, TRACE, CONNECT, and ALL,(all of them in dropdown) also status code, time taken like less then 1ms, 5 ms, 10ms and so on. It should be dynamic and custom range filter.
+
+
+Please talk to me about any other enhancements or features you want to add to the project.
