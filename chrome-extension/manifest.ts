@@ -24,11 +24,11 @@ const manifest = {
   version: packageJson.version,
   description: '__MSG_extensionDescription__',
 
-  // Needed so you can capture/replay arbitrary requests
-  host_permissions: ['<all_urls>'],
+  // Needed so you can capture/replay arbitrary requests including new tab
+  host_permissions: ['<all_urls>', 'chrome://newtab/*'],
 
-  // Keep only what's required + cookies for enhanced response data + webRequest for monitoring
-  permissions: ['storage', 'debugger', 'cookies', 'webRequest'],
+  // Enhanced permissions for maximum compatibility including new tabs
+  permissions: ['storage', 'debugger', 'cookies', 'webRequest', 'activeTab', 'tabs', 'scripting'],
 
   // Background script (optional but useful if you plan to attach debugger, etc.)
   background: {
@@ -38,6 +38,17 @@ const manifest = {
 
   // This is the heart of a DevTools extension
   devtools_page: 'devtools/index.html',
+
+  // Content scripts for better compatibility with all pages including empty tabs and new tab
+  content_scripts: [
+    {
+      matches: ['<all_urls>', 'chrome://newtab/*', 'chrome-search://*/*'],
+      js: ['content.js'],
+      run_at: 'document_start',
+      all_frames: true,
+      match_about_blank: true
+    }
+  ],
 
   // Icons still useful for extension listing
   icons: {

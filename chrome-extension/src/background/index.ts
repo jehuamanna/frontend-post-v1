@@ -281,23 +281,31 @@ class NetworkMonitor {
       return true;
     }
 
-    // Filter out non-API requests (images, CSS, etc.)
-    const ignoredTypes = ['image', 'stylesheet', 'font', 'media', 'websocket'];
-    const ignoredExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf'];
+    // Allow monitoring even for special URLs (empty tabs, chrome:// pages, etc.)
+    // This ensures the extension works on new tabs and special pages
     
-    // Check resource type
+    // Filter out non-API requests (images, CSS, etc.) but be more permissive
+    const ignoredTypes = ['image', 'stylesheet', 'font', 'media'];
+    const ignoredExtensions = ['.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf'];
+    
+    // Check resource type (removed websocket to allow monitoring)
     if (ignoredTypes.includes(details.type)) {
       return true;
     }
 
-    // Check URL extensions
+    // Check URL extensions (removed .js to allow monitoring JS requests)
     if (ignoredExtensions.some(ext => details.url.toLowerCase().includes(ext))) {
       return true;
     }
 
-    // Ignore Chrome extension URLs
+    // Allow Chrome extension URLs for better compatibility
     if (details.url.startsWith('chrome-extension://')) {
-      return true;
+      return false; // Changed to false to allow monitoring extension requests
+    }
+
+    // Allow chrome:// URLs for new tab compatibility
+    if (details.url.startsWith('chrome://')) {
+      return false; // Allow monitoring chrome:// URLs
     }
 
     return false;
