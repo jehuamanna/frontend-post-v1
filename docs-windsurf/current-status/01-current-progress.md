@@ -1330,16 +1330,140 @@ Based on the current feature requirements from `02-bugs.md`, here's the comprehe
 - ✅ Custom time range filtering
 - ✅ Filter state persistence across sessions
 
-### **🚀 Ready for Implementation**
+## **✅ SPRINT 4A: CRITICAL FIXES - COMPLETED** (2025-10-05 at 23:47)
 
-**Current Status**: Awaiting go signal for Sprint 4A (Critical Fixes)
+**🎯 Sprint Goal**: Fix critical data prefilling issues and modal functionality
+**📅 Duration**: 45 minutes
+**📊 Status**: 100% COMPLETE
+**🔧 Complexity**: HIGH - Required deep debugging of React state flow
 
-**Next Steps**:
-1. Get approval to proceed with Sprint 4A
-2. Investigate Request Command modal issue
-3. Begin implementation following established patterns
-4. Document all changes with detailed RCA as per project guidelines
+### **🚨 CRITICAL BUGS FIXED**
 
-**Estimated Total Time**: 8-10 hours across all sprints
-**Expected Completion**: Within 2-3 development sessions
-**Risk Level**: LOW - Building on solid existing architecture
+#### **Bug #1: ✅ Request Command Modal Not Appearing** - COMPLETED
+- **Issue**: FetchCurlModal component was imported but not rendered in JSX
+- **Root Cause**: Missing modal component in Panel.tsx render method
+- **Solution**: Added FetchCurlModal component with proper props to JSX
+- **Files Modified**: `pages/devtools-panel/src/Panel.tsx`
+- **Result**: Request Command button now properly opens modal for fetch/cURL input
+
+#### **Bug #2: ✅ Data Prefilling Not Working** - COMPLETED  
+- **Issue**: Parsed fetch/cURL data wasn't populating request form fields (headers, body, parameters)
+- **Root Cause**: UPDATE_REQUEST reducer used nullish coalescing (`??`) preventing empty objects/strings from overwriting existing data
+- **Technical Problem**: 
+  - `headers: { ...(action.payload.request.headers ?? tab.data.request.headers) }`
+  - Empty `{}` would fallback to existing headers instead of clearing them
+- **Solution**: Changed to explicit undefined checks (`!== undefined`)
+- **Files Modified**: 
+  - `pages/devtools-panel/src/hooks/useTabs.ts` - Fixed UPDATE_REQUEST reducer logic
+  - `pages/devtools-panel/src/Panel.tsx` - Enhanced modal save handling
+- **Result**: Headers, body, and query parameters now populate correctly from parsed commands
+
+#### **Bug #3: ✅ Modal Auto-Closing on Paste** - COMPLETED
+- **Issue**: Modal automatically closed immediately after pasting commands, interrupting user workflow
+- **Root Cause**: handleModalSave function was closing modal during auto-save operations
+- **Solution**: Removed auto-close from handleModalSave, modal only closes on explicit user actions
+- **User Experience**: Modal stays open during paste/edit, closes only on X button or click-away
+- **Result**: Uninterrupted editing experience with real-time feedback
+
+#### **Bug #4: ✅ Delayed Auto-Save Issues** - COMPLETED
+- **Issue**: 500ms delay in auto-save caused data loss if users closed modal quickly
+- **Root Cause**: Debounced auto-save in FetchCurlModal with excessive delay
+- **Solution**: Implemented immediate parsing + 300ms fallback auto-save
+- **Files Modified**: `pages/devtools-panel/src/components/FetchCurlModal.tsx`
+- **Result**: Instant data parsing and saving on paste operations
+
+### **🔧 TECHNICAL IMPROVEMENTS**
+
+#### **Enhanced State Management**
+- **Improved UPDATE_REQUEST Logic**: Proper handling of empty objects and undefined values
+- **Guaranteed Object References**: Always creates new object references for reliable React updates
+- **Better Data Flow**: Streamlined data flow from modal parsing to form population
+
+#### **User Experience Enhancements**
+- **Real-time Parsing**: Immediate feedback when pasting commands
+- **Non-intrusive Modal**: Modal stays open for continued editing
+- **Reliable Auto-save**: Multiple save triggers ensure data persistence
+
+### **📊 Sprint 4A Metrics**
+- **Duration**: 45 minutes (2025-10-05 23:00 - 23:47)
+- **Bugs Fixed**: 4/4 critical issues (100% success rate)
+- **Files Modified**: 3 core files (`Panel.tsx`, `useTabs.ts`, `FetchCurlModal.tsx`)
+- **Lines Changed**: ~25 lines of production code
+- **Complexity**: HIGH - Required React state flow debugging
+- **Testing**: Manual testing with cURL and fetch commands confirmed all fixes
+
+### **✅ Success Criteria - All Met**
+- ✅ **Request Command modal opens properly** - Users can access fetch/cURL input
+- ✅ **Data prefilling works correctly** - Headers, body, and params populate from parsed commands
+- ✅ **Modal workflow is smooth** - No auto-closing interruptions during editing
+- ✅ **Auto-save is reliable** - Immediate parsing with fallback mechanisms
+
+### **🧪 Validated Test Cases**
+```bash
+# Test Case 1: Basic cURL with headers
+curl "https://api.example.com/users" -H "Authorization: Bearer token" -H "Content-Type: application/json"
+✅ PASS: Headers populate correctly
+
+# Test Case 2: POST with body and query params
+curl -X POST "https://api.example.com/users?page=1&limit=10" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John", "email": "john@example.com"}'
+✅ PASS: Method, headers, body, and query params all populate
+
+# Test Case 3: Fetch command with complex structure
+fetch('https://api.example.com/users?active=true', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer xyz' },
+  body: JSON.stringify({ name: 'John' })
+})
+✅ PASS: All data populates correctly with proper formatting
+```
+
+---
+
+## **🚀 SPRINT 4B: MONITOR ENHANCEMENT - READY TO START**
+
+**🎯 Sprint Goal**: Convert Monitor tab to professional table layout with sorting and visual enhancements
+**📅 Estimated Duration**: 3-4 hours
+**📊 Current Status**: READY TO START
+**🔧 Complexity**: MEDIUM - UI restructuring required
+
+### **📋 Sprint 4B Task Breakdown**
+
+#### **Task 1: Convert Monitor to Table Layout** (Priority: HIGH, Est: 1.5 hours)
+- **Current**: List-based display of network requests
+- **Target**: Professional table with columns (Method, URL, Status, Time, Size)
+- **Files to Modify**: `components/MonitorTab.tsx`
+- **Benefits**: Better data organization, professional appearance
+
+#### **Task 2: Implement Basic Sorting** (Priority: HIGH, Est: 1 hour)
+- **Columns**: URL, Method, Status Code, Response Time
+- **Interaction**: Click column headers to sort ascending/descending
+- **Visual**: Sort indicators (arrows) in column headers
+- **Benefits**: Better data organization for large request lists
+
+#### **Task 3: Add Status Code Visual Indicators** (Priority: MEDIUM, Est: 30 minutes)
+- **Design**: Subtle gray variations maintaining minimalistic aesthetic
+- **Status Colors**: Success (light gray), Error (dark gray), Redirect (medium gray)
+- **Implementation**: CSS classes based on status code ranges
+- **Benefits**: Quick visual identification of request outcomes
+
+#### **Task 4: Enhance Table UI** (Priority: MEDIUM, Est: 1 hour)
+- **Styling**: Chrome DevTools professional appearance
+- **Responsive**: Table works on different screen sizes
+- **Performance**: Optimize for 100+ requests with virtualization if needed
+- **Accessibility**: Proper ARIA labels and keyboard navigation
+
+### **🎯 Sprint 4B Success Criteria**
+- ✅ Monitor displays requests in sortable table format
+- ✅ Status codes have subtle visual indicators
+- ✅ Table maintains minimalistic design consistency
+- ✅ Sorting works smoothly for all columns
+- ✅ Table performance handles large request lists
+- ✅ Professional appearance matching Chrome DevTools
+
+### **⚡ Ready for Sprint 4B Implementation**
+
+**Current Status**: All critical issues resolved, foundation solid for table enhancement
+**Next Action**: Await go signal to begin Sprint 4B (Monitor Enhancement)
+**Risk Level**: LOW - Building on proven architecture with clear requirements
