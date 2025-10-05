@@ -459,13 +459,20 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
 
   const handleChange = useCallback((val: string) => {
     setValue(val);
-    // Debounced validation and auto-save
+    
+    // Immediate validation and auto-save for better UX
+    const result = validateAndParse(val);
+    if (result.parsed) {
+      onSave(val, result.parsed, result.type || undefined);
+    }
+    
+    // Also keep debounced save as fallback
     setTimeout(() => {
-      const result = validateAndParse(val);
-      if (result.parsed) {
-        onSave(val, result.parsed, result.type || undefined);
+      const delayedResult = validateAndParse(val);
+      if (delayedResult.parsed) {
+        onSave(val, delayedResult.parsed, delayedResult.type || undefined);
       }
-    }, 500);
+    }, 300);
   }, [validateAndParse, onSave]);
 
   // Handle click outside to close

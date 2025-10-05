@@ -73,12 +73,12 @@ const tabsReducer = (state: Tab[], action: TabAction): Tab[] => {
               data: {
                 ...tab.data,
                 request: {
-                  url: action.payload.request.url ?? tab.data.request.url,
-                  method: action.payload.request.method ?? tab.data.request.method,
-                  body: action.payload.request.body ?? tab.data.request.body,
-                  // Always create new object references - simple and reliable
-                  headers: { ...(action.payload.request.headers ?? tab.data.request.headers) },
-                  params: { ...(action.payload.request.params ?? tab.data.request.params) },
+                  url: action.payload.request.url !== undefined ? action.payload.request.url : tab.data.request.url,
+                  method: action.payload.request.method !== undefined ? action.payload.request.method : tab.data.request.method,
+                  body: action.payload.request.body !== undefined ? action.payload.request.body : tab.data.request.body,
+                  // Always create new object references and allow empty objects to overwrite
+                  headers: action.payload.request.headers !== undefined ? { ...action.payload.request.headers } : { ...tab.data.request.headers },
+                  params: action.payload.request.params !== undefined ? { ...action.payload.request.params } : { ...tab.data.request.params },
                 }
               }
             }
