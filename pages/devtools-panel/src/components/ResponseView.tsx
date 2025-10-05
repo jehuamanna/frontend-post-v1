@@ -1,6 +1,119 @@
 import React, { useState, useEffect } from 'react';
+import CodeMirror from '@uiw/react-codemirror';
+import { javascript } from '@codemirror/lang-javascript';
+import { EditorView } from '@codemirror/view';
 import { HttpResponse } from '../types';
 import { getResponseTabOrder, updateResponseTabOrder, type TabOrder } from '../utils/tabPersistence';
+
+// CodeMirror theme for response viewer
+const responseViewerTheme = EditorView.theme({
+  "&": {
+    backgroundColor: "#f9fafb",
+    color: "#1f2937",
+    fontSize: "14px",
+    fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+  },
+  ".cm-content": {
+    backgroundColor: "#f9fafb",
+    caretColor: "#1f2937",
+    padding: "16px"
+  },
+  ".cm-focused": {
+    backgroundColor: "#f9fafb",
+    outline: "none"
+  },
+  ".cm-editor.cm-focused": {
+    backgroundColor: "#f9fafb"
+  },
+  ".cm-scroller": {
+    backgroundColor: "#f9fafb"
+  },
+  ".cm-gutters": {
+    backgroundColor: "#f3f4f6",
+    color: "#9ca3af",
+    border: "none",
+    borderRight: "1px solid #e5e7eb"
+  },
+  ".cm-lineNumbers .cm-gutterElement": {
+    color: "#9ca3af",
+    fontSize: "12px"
+  },
+  ".cm-activeLine": {
+    backgroundColor: "#f3f4f6"
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "#e5e7eb"
+  },
+  ".cm-cursor": {
+    display: "none" // Hide cursor since this is read-only
+  }
+});
+
+// Cookie parsing utility
+interface ParsedCookie {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  expires?: string;
+  maxAge?: string;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: string;
+}
+
+const parseCookieString = (cookieString: string): ParsedCookie => {
+  const parts = cookieString.split(';').map(part => part.trim());
+  const [nameValue, ...attributes] = parts;
+  
+  const [name, value] = nameValue.split('=');
+  const parsed: ParsedCookie = {
+    name: name?.trim() || '',
+    value: value?.trim() || ''
+  };
+  
+  attributes.forEach(attr => {
+    const [key, val] = attr.split('=');
+    const lowerKey = key?.toLowerCase().trim();
+    
+    switch (lowerKey) {
+      case 'domain':
+        parsed.domain = val?.trim();
+        break;
+      case 'path':
+        parsed.path = val?.trim();
+        break;
+      case 'expires':
+        parsed.expires = val?.trim();
+        break;
+      case 'max-age':
+        parsed.maxAge = val?.trim();
+        break;
+      case 'httponly':
+        parsed.httpOnly = true;
+        break;
+      case 'secure':
+        parsed.secure = true;
+        break;
+      case 'samesite':
+        parsed.sameSite = val?.trim();
+        break;
+    }
+  });
+  
+  return parsed;
+};
+
+// Helper function to detect if content is HTML
+const isHtmlContent = (body: string, contentType?: string): boolean => {
+  if (contentType?.includes('text/html') || contentType?.includes('application/xhtml')) {
+    return true;
+  }
+  // Also check if body looks like HTML
+  const trimmed = body.trim();
+  return trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || 
+         (trimmed.includes('<') && trimmed.includes('>') && trimmed.includes('</'));
+};
 
 interface ResponseViewProps {
   response: HttpResponse | null;
@@ -24,6 +137,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
   }, []);
   const [draggedTab, setDraggedTab] = useState<number | null>(null);
   const [dragOverTab, setDragOverTab] = useState<number | null>(null);
+  const [htmlViewMode, setHtmlViewMode] = useState<'raw' | 'rendered'>('raw');
 
   // Drag and drop handlers for tab reordering
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -253,11 +367,108 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
         <div className="flex-1 min-h-0 overflow-auto bg-white p-4">
           {/* Body Tab */}
           {activeTab === 'body' && (
-            <div className="h-full">
-              <div className="h-full border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
-                <pre className="text-sm font-mono text-gray-800 leading-relaxed whitespace-pre-wrap">
-                  {formatResponseBody(response.body, response.contentType)}
-                </pre>
+            <div className="h-full flex flex-col">
+              {/* HTML View Mode Toggle (only show for HTML content) */}
+              {isHtmlContent(response.body, response.contentType) && (
+                <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                  <span className="text-xs font-medium text-gray-700">View:</span>
+                  <div className="flex bg-white border border-gray-300 rounded overflow-hidden">
+                    <button
+                      onClick={() => setHtmlViewMode('raw')}
+                      className={`px-3 py-1 text-xs font-medium transition-colors ${
+                        htmlViewMode === 'raw'
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      Raw HTML
+                    </button>
+                    <button
+                      onClick={() => setHtmlViewMode('rendered')}
+                      className={`px-3 py-1 text-xs font-medium transition-colors border-l border-gray-300 ${
+                        htmlViewMode === 'rendered'
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      Rendered
+                    </button>
+                  </div>
+                  <div className="flex-1"></div>
+                  <span className="text-xs text-gray-500">
+                    {response.contentType || 'text/html'}
+                  </span>
+                </div>
+              )}
+
+              {/* Content Display */}
+              <div className="flex-1 min-h-0">
+                {isHtmlContent(response.body, response.contentType) && htmlViewMode === 'rendered' ? (
+                  /* Rendered HTML View */
+                  <div className="h-full border border-gray-300 rounded-md overflow-hidden shadow-sm bg-white">
+                    <div className="h-full flex">
+                      {/* Rendered Preview */}
+                      <div className="flex-1 overflow-auto">
+                        <iframe
+                          srcDoc={response.body}
+                          className="w-full h-full border-0"
+                          sandbox="allow-same-origin"
+                          title="HTML Preview"
+                        />
+                      </div>
+                      {/* Raw HTML Side Panel */}
+                      <div className="w-1/3 border-l border-gray-300 bg-gray-50">
+                        <div className="h-full overflow-hidden">
+                          <div className="p-2 bg-gray-100 border-b border-gray-300">
+                            <span className="text-xs font-medium text-gray-700">Raw HTML</span>
+                          </div>
+                          <div className="h-full overflow-auto">
+                            <CodeMirror
+                              value={formatResponseBody(response.body, response.contentType)}
+                              readOnly={true}
+                              extensions={[javascript(), responseViewerTheme]}
+                              basicSetup={{
+                                lineNumbers: true,
+                                foldGutter: false,
+                                dropCursor: false,
+                                allowMultipleSelections: false,
+                                indentOnInput: false,
+                                bracketMatching: true,
+                                closeBrackets: false,
+                                autocompletion: false,
+                                highlightSelectionMatches: false,
+                                searchKeymap: false
+                              }}
+                              className="h-full text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Raw/Code View */
+                  <div className="h-full border border-gray-300 rounded-md overflow-hidden shadow-sm">
+                    <CodeMirror
+                      value={formatResponseBody(response.body, response.contentType)}
+                      readOnly={true}
+                      extensions={[javascript(), responseViewerTheme]}
+                      basicSetup={{
+                        lineNumbers: true,
+                        foldGutter: true,
+                        dropCursor: false,
+                        allowMultipleSelections: false,
+                        indentOnInput: false,
+                        bracketMatching: true,
+                        closeBrackets: false,
+                        autocompletion: false,
+                        highlightSelectionMatches: false,
+                        searchKeymap: true
+                      }}
+                      className="h-full"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -318,23 +529,90 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
           {/* Cookies Tab */}
           {activeTab === 'cookies' && (
             <div className="h-full">
-              <div className="h-full border border-gray-300 rounded-md p-4 bg-gray-50 overflow-auto shadow-sm">
-                <div className="space-y-2 text-sm">
-                  {response.cookies && response.cookies.length > 0 ? (
-                    response.cookies.map((cookie, index) => (
-                      <div key={index} className="border-b border-gray-200 pb-2 last:border-b-0">
-                        <span className="text-gray-700 font-mono text-xs break-all">{cookie}</span>
+              <div className="h-full border border-gray-300 rounded-md bg-white overflow-hidden shadow-sm">
+                {response.cookies && response.cookies.length > 0 ? (
+                  <div className="h-full overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Value</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Domain</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Path</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Expires</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Flags</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {response.cookies.map((cookieString, index) => {
+                          const parsedCookie = parseCookieString(cookieString);
+                          return (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-xs font-mono text-gray-900 max-w-xs truncate" title={parsedCookie.name}>
+                                {parsedCookie.name}
+                              </td>
+                              <td className="px-4 py-3 text-xs font-mono text-gray-700 max-w-xs truncate" title={parsedCookie.value}>
+                                {parsedCookie.value}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-700">
+                                {parsedCookie.domain || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-700">
+                                {parsedCookie.path || '/'}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-700">
+                                {parsedCookie.expires || (parsedCookie.maxAge ? `Max-Age: ${parsedCookie.maxAge}` : 'Session')}
+                              </td>
+                              <td className="px-4 py-3 text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {parsedCookie.httpOnly && (
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">HttpOnly</span>
+                                  )}
+                                  {parsedCookie.secure && (
+                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Secure</span>
+                                  )}
+                                  {parsedCookie.sameSite && (
+                                    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                      SameSite={parsedCookie.sameSite}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : response.headers['set-cookie'] ? (
+                  <div className="p-4">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-yellow-800">Raw Cookie Header</h3>
+                          <div className="mt-2 text-sm text-yellow-700">
+                            <p className="font-mono text-xs break-all">{response.headers['set-cookie']}</p>
+                          </div>
+                        </div>
                       </div>
-                    ))
-                  ) : response.headers['set-cookie'] ? (
-                    <div>
-                      <span className="font-semibold text-gray-900">set-cookie:</span>{' '}
-                      <span className="text-gray-700">{response.headers['set-cookie']}</span>
                     </div>
-                  ) : (
-                    <span className="text-gray-500 italic">No cookies in response</span>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No Cookies</h3>
+                      <p className="mt-1 text-sm text-gray-500">This response does not contain any cookies.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

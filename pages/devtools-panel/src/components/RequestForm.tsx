@@ -1,6 +1,50 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import CodeMirror from '@uiw/react-codemirror';
+import { javascript } from '@codemirror/lang-javascript';
+import { EditorView } from '@codemirror/view';
 import { HttpRequest, HttpMethod } from '../types';
 import { getRequestTabOrder, updateRequestTabOrder, type TabOrder } from '../utils/tabPersistence';
+
+// CodeMirror theme for body editor
+const bodyEditorTheme = EditorView.theme({
+  "&": {
+    backgroundColor: "white",
+    color: "#1f2937",
+    fontSize: "12px",
+    fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+  },
+  ".cm-content": {
+    backgroundColor: "white",
+    caretColor: "#1f2937",
+    padding: "8px"
+  },
+  ".cm-focused": {
+    backgroundColor: "white",
+    outline: "1px solid #1f2937"
+  },
+  ".cm-editor.cm-focused": {
+    backgroundColor: "white"
+  },
+  ".cm-scroller": {
+    backgroundColor: "white"
+  },
+  ".cm-gutters": {
+    backgroundColor: "#f9fafb",
+    color: "#9ca3af",
+    border: "none",
+    borderRight: "1px solid #f3f4f6"
+  },
+  ".cm-lineNumbers .cm-gutterElement": {
+    color: "#9ca3af",
+    fontSize: "12px"
+  },
+  ".cm-activeLine": {
+    backgroundColor: "#f9fafb"
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "#f3f4f6"
+  }
+});
 
 // Copy to clipboard utility
 const copyToClipboard = async (text: string): Promise<boolean> => {
@@ -508,24 +552,39 @@ export const RequestForm: React.FC<RequestFormProps> = ({
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-900">Body</h3>
             </div>
-            <div className="flex-1 min-h-0 border border-gray-300 rounded relative">
-              <textarea
+            <div className="flex-1 min-h-0 border border-gray-300 rounded relative overflow-hidden">
+              <CodeMirror
                 value={request.body || ''}
-                onChange={(e) => handleBodyChange(e.target.value)}
-                className="w-full h-full p-2 pr-8 text-xs font-mono resize-none border-0 rounded bg-white text-gray-900 placeholder-gray-500 focus:ring-1 focus:ring-gray-900 focus:border-gray-900 outline-none"
-                placeholder='{\n  "name": "John Doe",\n  "email": "john@example.com"\n}'
+                onChange={(value) => handleBodyChange(value)}
+                placeholder={`{
+  "name": "John Doe",
+  "email": "john@example.com"
+}`}
+                extensions={[javascript(), bodyEditorTheme]}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: true,
+                  dropCursor: false,
+                  allowMultipleSelections: false,
+                  indentOnInput: true,
+                  bracketMatching: true,
+                  closeBrackets: true,
+                  autocompletion: true,
+                  highlightSelectionMatches: false
+                }}
+                className="h-full"
               />
               {request.body && (
                 <button
                   onClick={() => copyText(request.body || '', 'Body')}
-                  className="absolute right-1 top-1 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-2 top-2 p-1 text-gray-400 hover:text-gray-600 transition-colors bg-white rounded shadow-sm border border-gray-200"
                   title="Copy body content"
                 >
-                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </button>
-                )}
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </div>
