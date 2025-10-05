@@ -364,7 +364,7 @@ const Panel = () => {
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
-            📡 Monitor
+            Monitor
           </button>
           <button
             onClick={() => handleContentTabClick('request')}
@@ -373,7 +373,7 @@ const Panel = () => {
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
-            📤 Request
+            Request
           </button>
           <button
             onClick={() => handleContentTabClick('response')}
@@ -382,7 +382,7 @@ const Panel = () => {
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
-            📥 Response
+            Response
           </button>
         </div>
 

@@ -90,19 +90,19 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.E
 
   const getStatusColor = (status?: number) => {
     if (!status) return 'text-gray-500';
-    if (status < 300) return 'text-green-600';
-    if (status < 400) return 'text-blue-600';
-    if (status < 500) return 'text-yellow-600';
-    return 'text-red-600';
+    if (status < 300) return 'text-gray-900 font-medium';
+    if (status < 400) return 'text-gray-700';
+    if (status < 500) return 'text-gray-600';
+    return 'text-gray-800';
   };
 
   const getMethodColor = (method: string) => {
     switch (method.toUpperCase()) {
-      case 'GET': return 'bg-green-100 text-green-800';
-      case 'POST': return 'bg-blue-100 text-blue-800';
-      case 'PUT': return 'bg-yellow-100 text-yellow-800';
-      case 'DELETE': return 'bg-red-100 text-red-800';
-      case 'PATCH': return 'bg-purple-100 text-purple-800';
+      case 'GET': return 'bg-white text-gray-900 border border-gray-300';
+      case 'POST': return 'bg-gray-900 text-white';
+      case 'PUT': return 'bg-gray-700 text-white';
+      case 'DELETE': return 'bg-gray-500 text-white';
+      case 'PATCH': return 'bg-gray-600 text-white';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -132,15 +132,15 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.E
             disabled={!port}
             className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
               isMonitoring 
-                ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' 
+                : 'bg-gray-900 text-white hover:bg-black'
             } ${!port ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isMonitoring ? '⏹️ Stop' : '▶️ Start'} Monitor
+            {isMonitoring ? 'Stop' : 'Start'} Monitor
           </button>
           
           <div className="flex items-center space-x-2 text-xs text-gray-600">
-            <div className={`w-2 h-2 rounded-full ${isMonitoring ? 'bg-green-500' : 'bg-gray-400'}`} />
+            <div className={`w-2 h-2 rounded-full ${isMonitoring ? 'bg-gray-900' : 'bg-gray-400'}`} />
             <span>{isMonitoring ? 'Monitoring' : 'Stopped'}</span>
           </div>
         </div>
@@ -162,7 +162,6 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.E
       <div className="flex-1 overflow-auto">
         {requests.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-4xl mb-2">📡</div>
             <div className="text-sm">
               {isMonitoring ? 'Waiting for network requests...' : 'Click Start Monitor to capture requests'}
             </div>
@@ -173,7 +172,7 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.E
               <div
                 key={request.id}
                 onClick={() => handleRequestClick(request)}
-                className="p-3 hover:bg-gray-50 cursor-pointer border-l-4 border-transparent hover:border-blue-400 transition-colors"
+                className="p-3 hover:bg-gray-50 cursor-pointer border-l-4 border-transparent hover:border-gray-900 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
