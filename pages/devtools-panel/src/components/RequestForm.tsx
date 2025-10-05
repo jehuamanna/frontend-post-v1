@@ -32,8 +32,9 @@ const bodyEditorTheme = EditorView.theme({
   },
   ".cm-scroller": {
     backgroundColor: "white",
-    overflow: "auto",
-    maxHeight: "100%"
+    overflow: "auto !important",
+    maxHeight: "100%",
+    minHeight: "200px"
   },
   ".cm-gutters": {
     backgroundColor: "#f9fafb",
@@ -589,6 +590,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                   highlightSelectionMatches: false
                 }}
                 className="h-full"
+                style={{ height: '100%', overflow: 'auto' }}
               />
               {request.body && (
                 <button

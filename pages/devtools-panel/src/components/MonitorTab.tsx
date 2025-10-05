@@ -11,35 +11,65 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
 
-  // Initialize Chrome runtime connection
+  // Initialize Chrome runtime connection with auto-reconnect
   useEffect(() => {
-    try {
-      const runtimePort = chrome.runtime.connect({ name: 'devtools-panel' });
-      setPort(runtimePort);
+    let reconnectTimer: NodeJS.Timeout;
+    let currentPort: chrome.runtime.Port | null = null;
 
-      runtimePort.onMessage.addListener((message) => {
-        if (message.type === 'REQUEST_CAPTURED') {
-          setRequests(prev => [message.request, ...prev.slice(0, 99)]); // Keep last 100 requests
-        } else if (message.type === 'REQUEST_COMPLETED') {
-          setRequests(prev => prev.map(req => 
-            req.id === message.request.id ? message.request : req
-          ));
-        }
-      });
+    const connectToBackground = () => {
+      try {
+        console.log('🔌 Attempting to connect to background script...');
+        const runtimePort = chrome.runtime.connect({ name: 'devtools-panel' });
+        currentPort = runtimePort;
+        setPort(runtimePort);
 
-      runtimePort.onDisconnect.addListener(() => {
-        console.log('Monitor port disconnected');
-        setPort(null);
-        setIsMonitoring(false);
-      });
+        runtimePort.onMessage.addListener((message) => {
+          if (message.type === 'REQUEST_CAPTURED') {
+            setRequests(prev => [message.request, ...prev.slice(0, 99)]); // Keep last 100 requests
+          } else if (message.type === 'REQUEST_COMPLETED') {
+            setRequests(prev => prev.map(req => 
+              req.id === message.request.id ? message.request : req
+            ));
+          }
+        });
 
-      return () => {
-        runtimePort.disconnect();
-      };
-    } catch (error) {
-      console.error('Failed to connect to background script:', error);
-      return () => {}; // Return empty cleanup function
-    }
+        runtimePort.onDisconnect.addListener(() => {
+          const error = chrome.runtime.lastError;
+          console.log('Monitor port disconnected:', error?.message || 'Clean disconnect');
+          setPort(null);
+          setIsMonitoring(false);
+          currentPort = null;
+
+          // Auto-reconnect after 2 seconds if not a clean shutdown
+          if (!error?.message?.includes('Extension context invalidated')) {
+            console.log('🔄 Scheduling reconnection in 2 seconds...');
+            reconnectTimer = setTimeout(() => {
+              connectToBackground();
+            }, 2000);
+          }
+        });
+
+        console.log('✅ Successfully connected to background script');
+      } catch (error) {
+        console.error('Failed to connect to background script:', error);
+        // Retry connection after 5 seconds
+        reconnectTimer = setTimeout(() => {
+          connectToBackground();
+        }, 5000);
+      }
+    };
+
+    // Initial connection
+    connectToBackground();
+
+    return () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      if (currentPort) {
+        currentPort.disconnect();
+      }
+    };
   }, []);
 
   const getCurrentTabId = useCallback(async (): Promise<number> => {

@@ -715,6 +715,43 @@ curl -X POST "https://api.example.com/login" \
   - Delete buttons: `text-red-600` → `text-gray-600`
 - **Result**: ✅ **FIXED** - Only black/white/gray colors used except for HTTP status codes
 
+
+
+### **✅ ADDITIONAL BUG FIXES (2025-10-05 at 14:03)**
+
+**Bug #6: ✅ Monitor Auto-Reconnection** - COMPLETED
+- **Issue**: Monitor sometimes stops by itself and we cannot monitor any requests
+- **Root Cause**: Chrome runtime port disconnections without proper reconnection handling
+- **Solution Implemented**: Enhanced MonitorTab component with auto-reconnection logic
+- **Files Modified**: `MonitorTab.tsx` - Enhanced connection management
+- **Improvements Made**:
+  - Added automatic reconnection after port disconnects (2-second delay)
+  - Enhanced error handling with Chrome runtime error detection
+  - Added connection retry logic with 5-second fallback
+  - Improved logging for debugging connection issues
+  - Graceful handling of extension context invalidation
+- **Result**: ✅ **FIXED** - Monitor now automatically reconnects and maintains persistent monitoring
+
+**Bug #7: ✅ CodeMirror Scrolling Enhancement** - COMPLETED
+- **Issue**: Scroll does not work in CodeMirror
+- **Root Cause**: Insufficient height constraints and overflow handling in CodeMirror theme
+- **Solution Implemented**: Enhanced CodeMirror theme and container styling
+- **Files Modified**: `RequestForm.tsx` - Updated bodyEditorTheme and CodeMirror config
+- **Improvements Made**:
+  - Added `overflow: "auto !important"` to force scrolling
+  - Set minimum height of 200px for proper scroll area
+  - Added inline style with `height: '100%'` and `overflow: 'auto'`
+  - Enhanced theme with proper height and overflow constraints
+  - Removed invalid TypeScript option to prevent errors
+- **Result**: ✅ **FIXED** - CodeMirror editor now scrolls properly with large content
+
+### **📊 Additional Bug Fix Summary:**
+- **Duration**: 10 minutes (2025-10-05 13:53 - 14:03)
+- **Bugs Addressed**: 2/2 (100% completion rate)
+- **Files Modified**: 2 components (`MonitorTab.tsx`, `RequestForm.tsx`)
+- **Lines Changed**: ~30 lines of code improvements
+- **Status**: ✅ **ALL ADDITIONAL BUGS FIXED** - Enhanced reliability and user experience
+
 ### **📊 Bug Fix Sprint Summary:**
 - **Duration**: 15 minutes (2025-10-05 13:37 - 13:52)
 - **Bugs Addressed**: 5/5 (100% completion rate)

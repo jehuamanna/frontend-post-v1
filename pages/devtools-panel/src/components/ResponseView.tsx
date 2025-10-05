@@ -16,7 +16,8 @@ const responseViewerTheme = EditorView.theme({
   ".cm-content": {
     backgroundColor: "#f9fafb",
     caretColor: "#1f2937",
-    padding: "16px"
+    padding: "16px",
+    whiteSpace: "pre"
   },
   ".cm-focused": {
     backgroundColor: "#f9fafb",
@@ -26,7 +27,8 @@ const responseViewerTheme = EditorView.theme({
     backgroundColor: "#f9fafb"
   },
   ".cm-scroller": {
-    backgroundColor: "#f9fafb"
+    backgroundColor: "#f9fafb",
+    overflowX: "visible"
   },
   ".cm-gutters": {
     backgroundColor: "#f3f4f6",
@@ -65,17 +67,17 @@ interface ParsedCookie {
 const parseCookieString = (cookieString: string): ParsedCookie => {
   const parts = cookieString.split(';').map(part => part.trim());
   const [nameValue, ...attributes] = parts;
-  
+
   const [name, value] = nameValue.split('=');
   const parsed: ParsedCookie = {
     name: name?.trim() || '',
     value: value?.trim() || ''
   };
-  
+
   attributes.forEach(attr => {
     const [key, val] = attr.split('=');
     const lowerKey = key?.toLowerCase().trim();
-    
+
     switch (lowerKey) {
       case 'domain':
         parsed.domain = val?.trim();
@@ -100,7 +102,7 @@ const parseCookieString = (cookieString: string): ParsedCookie => {
         break;
     }
   });
-  
+
   return parsed;
 };
 
@@ -111,8 +113,8 @@ const isHtmlContent = (body: string, contentType?: string): boolean => {
   }
   // Also check if body looks like HTML
   const trimmed = body.trim();
-  return trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || 
-         (trimmed.includes('<') && trimmed.includes('>') && trimmed.includes('</'));
+  return trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') ||
+    (trimmed.includes('<') && trimmed.includes('>') && trimmed.includes('</'));
 };
 
 interface ResponseViewProps {
@@ -204,23 +206,23 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    
+
     if (draggedTab === null) return;
-    
+
     const newTabOrder = [...tabOrder];
     const draggedItem = newTabOrder[draggedTab];
-    
+
     // Remove dragged item
     newTabOrder.splice(draggedTab, 1);
-    
+
     // Insert at new position
     newTabOrder.splice(dropIndex, 0, draggedItem);
-    
+
     setTabOrder(newTabOrder);
-    
+
     // Persist the new tab order
     updateResponseTabOrder(newTabOrder);
-    
+
     setDraggedTab(null);
     setDragOverTab(null);
   };
@@ -288,46 +290,55 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
 
   const formatResponseBody = (body: string, contentType?: string) => {
     if (!body) return '';
-    
+
     try {
       // Handle JSON content
       if (contentType?.includes('application/json') || contentType?.includes('text/json')) {
         const parsed = JSON.parse(body);
         return JSON.stringify(parsed, null, 2);
       }
-      
+
       // Handle HTML content
       if (contentType?.includes('text/html') || contentType?.includes('application/xhtml')) {
-        // Simple HTML formatting - add line breaks between tags
+        // Enhanced HTML formatting with proper indentation
         let formatted = body
           .replace(/></g, '>\n<')
           .replace(/^\s+|\s+$/g, '');
-        
-        // Add basic indentation
+
+        // List of void elements that don't have closing tags
+        const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+
         const lines = formatted.split('\n');
         let indentLevel = 0;
         const indentedLines = lines.map(line => {
           const trimmed = line.trim();
           if (!trimmed) return '';
-          
+
           // Decrease indent for closing tags
           if (trimmed.startsWith('</')) {
             indentLevel = Math.max(0, indentLevel - 1);
           }
-          
+
           const indentedLine = '  '.repeat(indentLevel) + trimmed;
-          
-          // Increase indent for opening tags (but not self-closing)
-          if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>')) {
-            indentLevel++;
+
+          // Increase indent for opening tags (but not self-closing or void elements)
+          if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.startsWith('<!')) {
+            // Extract tag name
+            const tagMatch = trimmed.match(/<(\w+)/);
+            const tagName = tagMatch?.[1]?.toLowerCase();
+
+            // Only increase indent if it's not a void element
+            if (tagName && !voidElements.includes(tagName)) {
+              indentLevel++;
+            }
           }
-          
+
           return indentedLine;
         });
-        
+
         return indentedLines.filter(line => line.length > 0).join('\n');
       }
-      
+
       // Handle XML content
       if (contentType?.includes('application/xml') || contentType?.includes('text/xml')) {
         return body
@@ -338,12 +349,12 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
           .filter(line => line.length > 0)
           .join('\n');
       }
-      
+
     } catch (error) {
       console.warn('Failed to format response body:', error);
       // If formatting fails, return original body
     }
-    
+
     return body;
   };
 
@@ -370,7 +381,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
       {/* Response tabs */}
       <div className="flex-1 min-h-0 flex flex-col">
         {/* Tab navigation */}
-        <div 
+        <div
           className="flex border-b border-gray-300 bg-gray-50"
           style={{ contain: 'layout' }}
           onDragOver={(e) => e.preventDefault()}
@@ -386,15 +397,12 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-xs font-medium transition-colors cursor-move select-none ${
-                activeTab === tab.id
-                  ? 'bg-white border-b-2 border-gray-900 text-gray-900'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              } ${
-                draggedTab === index ? 'opacity-50' : ''
-              } ${
-                dragOverTab === index ? 'bg-gray-100' : ''
-              }`}
+              className={`px-4 py-2 text-xs font-medium transition-colors cursor-move select-none ${activeTab === tab.id
+                ? 'bg-white border-b-2 border-gray-900 text-gray-900'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                } ${draggedTab === index ? 'opacity-50' : ''
+                } ${dragOverTab === index ? 'bg-gray-100' : ''
+                }`}
             >
               {tab.label}
               <span className="ml-1 text-xs text-gray-400">⋮⋮</span>
@@ -414,21 +422,19 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                   <div className="flex bg-white border border-gray-300 rounded overflow-hidden">
                     <button
                       onClick={() => setHtmlViewMode('raw')}
-                      className={`px-3 py-1 text-xs font-medium transition-colors ${
-                        htmlViewMode === 'raw'
-                          ? 'bg-gray-900 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                      className={`px-3 py-1 text-xs font-medium transition-colors ${htmlViewMode === 'raw'
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                        }`}
                     >
                       Raw HTML
                     </button>
                     <button
                       onClick={() => setHtmlViewMode('rendered')}
-                      className={`px-3 py-1 text-xs font-medium transition-colors border-l border-gray-300 ${
-                        htmlViewMode === 'rendered'
-                          ? 'bg-gray-900 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                      className={`px-3 py-1 text-xs font-medium transition-colors border-l border-gray-300 ${htmlViewMode === 'rendered'
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                        }`}
                     >
                       Rendered
                     </button>
@@ -444,7 +450,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
               <div className="flex-1 min-h-0">
                 {isHtmlContent(response.body, response.contentType) && htmlViewMode === 'rendered' ? (
                   /* Rendered HTML View */
-                  <div className="h-full border border-gray-300 rounded-md overflow-hidden shadow-sm bg-white">
+                  <div className="h-full border border-gray-300 rounded-md overflow-scroll shadow-sm bg-white">
                     <div className="h-full flex">
                       {/* Rendered Preview */}
                       <div className="flex-1 overflow-auto">
@@ -487,7 +493,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                   </div>
                 ) : (
                   /* Raw/Code View */
-                  <div className="h-full border border-gray-300 rounded-md overflow-hidden shadow-sm">
+                  <div className="h-full border border-gray-300 rounded-md overflow-scroll shadow-sm">
                     <CodeMirror
                       value={formatResponseBody(response.body, response.contentType)}
                       readOnly={true}
@@ -502,7 +508,8 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                         closeBrackets: false,
                         autocompletion: false,
                         highlightSelectionMatches: false,
-                        searchKeymap: true
+                        searchKeymap: true,
+                        lineWrapping: false
                       }}
                       className="h-full"
                     />
