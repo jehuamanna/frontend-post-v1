@@ -151,3 +151,17 @@ React.useEffect(() => {
 - Backward compatibility maintained for existing functionality
 
 **Status**: ✅ **RESOLVED** - Fetch and cURL modals now have proper data isolation per tab.
+
+
+
+## Bug list (current Sprint)
+
+1. body of the request and response sections should be codemirror editor.
+2. Query parameters when edited must reflect in the url.
+3. If the response from the api is HTML then it should display both the raw html and parsed html in the response section.
+4. A button to copy the curl/fetch command of the modifed request parameters.
+5. Close button for the 'Request Command' modal.
+6. Ability to cancel an ongoing request.
+7. Cookies should be displayed in the response section as a table.
+8. Sometime fetch/curl request command does not show the parsed headers.
+9. Body content if json/html should be parsed and displayed in the response section as beautifyed. 

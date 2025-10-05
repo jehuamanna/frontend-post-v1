@@ -554,6 +554,12 @@ curl -X POST "https://api.example.com/login" \
 3. **Error Handling**: Proper error states and messaging
 4. **Request Queue**: Manage multiple concurrent requests
 
+
+**Sprint 2:**
+This sprint we fix bugs.
+[02-bugs.md](02-bugs.md)
+Give me solid plan and mofify the contents here in this section.
+
 ## **📋 Backlogs:**
 
 
