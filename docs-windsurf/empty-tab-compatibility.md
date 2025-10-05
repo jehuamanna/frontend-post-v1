@@ -51,8 +51,8 @@ The extension will be available in DevTools when:
 1. ✅ **Regular web pages** (http://, https://)
 2. ✅ **Local files** (file://) with proper permissions
 3. ✅ **about:blank** and similar empty pages
-4. ⚠️ **chrome://newtab/** (limited by Chrome security)
-5. ⚠️ **chrome://settings/** (limited by Chrome security)
+4. ✅ **chrome://newtab/** (WORKS via New Tab Override - Custom Frontend Post page)
+5. ❌ **chrome://settings/** (BLOCKED by Chrome security)
 
 ### Testing Extension Availability
 1. Open Chrome DevTools (F12)
@@ -68,32 +68,45 @@ The extension will be available in DevTools when:
 3. **Try a regular website** (like https://google.com) to verify functionality
 4. **Check DevTools Console** for any error messages
 
-### Limited Functionality on Special Pages
-Some Chrome pages have security restrictions that prevent full extension functionality:
-- **New Tab Page**: Use a regular website instead
-- **Chrome Settings**: Extension access is restricted
-- **Extension Pages**: Limited functionality by design
+### New Tab Override Implementation
+The extension now uses Chrome's `chrome_url_overrides` feature to replace the default new tab page:
+- **Custom New Tab**: Beautiful branded page with extension information
+- **Full DevTools Access**: Complete extension functionality available
+- **User-Friendly**: Clear instructions and feature highlights
+- **Professional Design**: Gradient background with feature cards
 
 ### Recommended Usage
 For best results, use the extension on:
+- ✅ **New Tab Page** (chrome://newtab) - **Now fully supported with custom page!**
 - ✅ Regular websites (https://example.com)
 - ✅ Development servers (http://localhost:3000)
 - ✅ API endpoints and web applications
 - ✅ Empty pages (about:blank)
 
+### Quick Start for New Tab Testing
+1. **Open New Tab**: Ctrl+T or click + button (now shows custom Frontend Post page)
+2. **Open DevTools**: Press F12 or Ctrl+Shift+I
+3. **Find Extension**: Look for "Frontend Post" tab in DevTools
+4. **Start Testing**: Full functionality available with beautiful new tab experience
+
 ## Technical Implementation
 
 ### Files Modified
-- `chrome-extension/manifest.ts` - Added activeTab, tabs permissions and content script
+- `chrome-extension/manifest.ts` - Added chrome_url_overrides for new tab page
+- `chrome-extension/public/newtab.html` - Custom new tab page implementation (CSP compliant)
+- `chrome-extension/public/newtab.css` - External CSS for new tab styling
+- `chrome-extension/public/newtab.js` - External JavaScript for new tab functionality
 - `pages/devtools/src/index.ts` - Enhanced panel creation with lifecycle management
 - `chrome-extension/src/background/index.ts` - More permissive monitoring rules
 - `chrome-extension/src/content/index.ts` - New minimal content script
 
 ### Key Features
-- **Universal Compatibility**: Works on maximum possible pages
+- **Universal Compatibility**: Works on maximum possible pages including chrome://newtab
 - **Enhanced Monitoring**: Allows monitoring of more request types
 - **Better Error Handling**: Graceful degradation on restricted pages
 - **Improved Logging**: Better debugging information
+- **CSP Compliance**: Chrome extension security requirements fully met
+- **Professional Design**: Beautiful gradient new tab page with feature showcase
 
 ## Conclusion
-The extension now has maximum compatibility with Chrome's security model while maintaining full functionality on supported pages. For the best experience, use the extension on regular web pages where all features are available.
+The extension now has maximum compatibility with Chrome's security model while maintaining full functionality on supported pages. **The chrome://newtab page is now fully supported** with a beautiful custom new tab page that provides complete DevTools extension access. The implementation is CSP-compliant and provides an excellent user experience for HTTP request testing.

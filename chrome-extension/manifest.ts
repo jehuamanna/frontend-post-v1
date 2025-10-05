@@ -39,6 +39,11 @@ const manifest = {
   // This is the heart of a DevTools extension
   devtools_page: 'devtools/index.html',
 
+  // Override new tab page to enable DevTools extension functionality
+  chrome_url_overrides: {
+    newtab: 'newtab.html'
+  },
+
   // Content scripts for better compatibility with all pages including empty tabs
   content_scripts: [
     {
@@ -55,11 +60,11 @@ const manifest = {
     '128': 'icon-128.png',
   },
 
-  // Only keep this if your devtools page needs to load bundled assets directly
+  // Web accessible resources for new tab page and devtools
   web_accessible_resources: [
     {
-      resources: ['*.js', '*.css', '*.svg', 'icon-128.png'],
-      matches: ['*://*/*'],
+      resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'newtab.html', 'newtab.js', 'newtab.css'],
+      matches: ['*://*/*', 'chrome-extension://*/*'],
     },
   ],
 } satisfies ManifestType;
