@@ -167,8 +167,25 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
       <div className="flex-1 overflow-auto">
         {requests.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-sm">
-              {isMonitoring ? 'Waiting for network requests...' : 'Click Start Monitor to capture requests'}
+            <div className="text-sm text-center">
+              {!port ? (
+                <div>
+                  <div className="font-medium text-gray-700 mb-2">Monitor Tab Loaded</div>
+                  <div>Connecting to background script...</div>
+                </div>
+              ) : isMonitoring ? (
+                <div>
+                  <div className="font-medium text-gray-700 mb-2">Monitoring Active</div>
+                  <div>Waiting for network requests...</div>
+                  <div className="text-xs mt-2 text-gray-400">Browse the website to see requests appear here</div>
+                </div>
+              ) : (
+                <div>
+                  <div className="font-medium text-gray-700 mb-2">Monitor Ready</div>
+                  <div>Click "Start Monitor" to capture network requests</div>
+                  <div className="text-xs mt-2 text-gray-400">Requests from the current tab will appear here</div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
