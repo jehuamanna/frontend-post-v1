@@ -2,6 +2,7 @@ import 'webextension-polyfill';
 
 // HTTP Request Engine for Chrome Extension
 // Based on the inspiration architecture for bypassing CORS and accessing full response data
+// Enhanced with Network Monitoring capabilities for real-time request capture
 
 interface FetchRequest {
   type: 'EXECUTE_FETCH';
@@ -26,6 +27,33 @@ interface FetchResponse {
   };
   error?: string;
   requestId: string;
+}
+
+// Network Monitoring Interfaces
+interface MonitoredRequest {
+  id: string;
+  tabId: number;
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body?: string;
+  timestamp: number;
+  status?: number;
+  responseHeaders?: Record<string, string>;
+  responseBody?: string;
+  timing: {
+    startTime: number;
+    endTime?: number;
+    duration?: number;
+  };
+  size?: number;
+  initiator?: string;
+}
+
+interface MonitorMessage {
+  type: 'START_MONITORING' | 'STOP_MONITORING' | 'REQUEST_CAPTURED' | 'REQUEST_COMPLETED';
+  tabId?: number;
+  request?: MonitoredRequest;
 }
 
 // Store for tracking pending requests
@@ -205,6 +233,217 @@ const collectResponseHeaders = (response: Response): Record<string, string> => {
   return headers;
 };
 
+// Network Monitor Class for real-time request capture
+class NetworkMonitor {
+  private capturedRequests = new Map<string, MonitoredRequest>();
+  private connectedPorts = new Set<chrome.runtime.Port>();
+  private isMonitoring = false;
+  private monitoredTabIds = new Set<number>();
+
+  init() {
+    console.log('🔍 NetworkMonitor initialized');
+    this.setupWebRequestListeners();
+  }
+
+  private setupWebRequestListeners() {
+    // Monitor request start
+    chrome.webRequest.onBeforeRequest.addListener(
+      this.handleRequestStart.bind(this),
+      { urls: ["<all_urls>"] },
+      ["requestBody"]
+    );
+
+    // Monitor request headers
+    chrome.webRequest.onBeforeSendHeaders.addListener(
+      this.handleRequestHeaders.bind(this),
+      { urls: ["<all_urls>"] },
+      ["requestHeaders"]
+    );
+
+    // Monitor response completion
+    chrome.webRequest.onCompleted.addListener(
+      this.handleRequestComplete.bind(this),
+      { urls: ["<all_urls>"] },
+      ["responseHeaders"]
+    );
+
+    // Monitor request errors
+    chrome.webRequest.onErrorOccurred.addListener(
+      this.handleRequestError.bind(this),
+      { urls: ["<all_urls>"] }
+    );
+  }
+
+  private shouldIgnoreRequest(details: chrome.webRequest.WebRequestBodyDetails): boolean {
+    // Don't monitor if not actively monitoring or tab not in monitored list
+    if (!this.isMonitoring || !this.monitoredTabIds.has(details.tabId)) {
+      return true;
+    }
+
+    // Filter out non-API requests (images, CSS, etc.)
+    const ignoredTypes = ['image', 'stylesheet', 'font', 'media', 'websocket'];
+    const ignoredExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf'];
+    
+    // Check resource type
+    if (ignoredTypes.includes(details.type)) {
+      return true;
+    }
+
+    // Check URL extensions
+    if (ignoredExtensions.some(ext => details.url.toLowerCase().includes(ext))) {
+      return true;
+    }
+
+    // Ignore Chrome extension URLs
+    if (details.url.startsWith('chrome-extension://')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private extractRequestBody(requestBody?: chrome.webRequest.WebRequestBody | null): string | undefined {
+    if (!requestBody) return undefined;
+
+    try {
+      // Handle form data
+      if (requestBody.formData) {
+        return JSON.stringify(requestBody.formData);
+      }
+
+      // Handle raw data
+      if (requestBody.raw && requestBody.raw.length > 0) {
+        const decoder = new TextDecoder();
+        return decoder.decode(requestBody.raw[0].bytes);
+      }
+    } catch (error) {
+      console.warn('Failed to extract request body:', error);
+    }
+
+    return undefined;
+  }
+
+  private extractHeaders(details: chrome.webRequest.WebRequestHeadersDetails): Record<string, string> {
+    const headers: Record<string, string> = {};
+    
+    if (details.requestHeaders) {
+      details.requestHeaders.forEach(header => {
+        if (header.name && header.value) {
+          headers[header.name.toLowerCase()] = header.value;
+        }
+      });
+    }
+
+    return headers;
+  }
+
+  private handleRequestStart(details: chrome.webRequest.WebRequestBodyDetails) {
+    if (this.shouldIgnoreRequest(details)) return;
+
+    const request: MonitoredRequest = {
+      id: details.requestId,
+      tabId: details.tabId,
+      method: details.method,
+      url: details.url,
+      headers: {},
+      body: this.extractRequestBody(details.requestBody),
+      timestamp: details.timeStamp,
+      timing: { startTime: details.timeStamp },
+      initiator: details.initiator
+    };
+
+    this.capturedRequests.set(details.requestId, request);
+    this.notifyDevTools('REQUEST_CAPTURED', request);
+
+    console.log(`📡 Captured request: ${details.method} ${details.url}`);
+  }
+
+  private handleRequestHeaders(details: chrome.webRequest.WebRequestHeadersDetails) {
+    const request = this.capturedRequests.get(details.requestId);
+    if (!request) return;
+
+    request.headers = this.extractHeaders(details);
+    this.capturedRequests.set(details.requestId, request);
+  }
+
+  private handleRequestComplete(details: chrome.webRequest.WebResponseDetails) {
+    const request = this.capturedRequests.get(details.requestId);
+    if (!request) return;
+
+    // Update request with response data
+    request.status = details.statusCode;
+    request.timing.endTime = details.timeStamp;
+    request.timing.duration = details.timeStamp - request.timing.startTime;
+
+    // Note: responseHeaders are available in onHeadersReceived event, not onCompleted
+    // We'll handle response headers in a separate listener if needed
+
+    this.capturedRequests.set(details.requestId, request);
+    this.notifyDevTools('REQUEST_COMPLETED', request);
+
+    console.log(`✅ Request completed: ${details.statusCode} ${request.method} ${request.url} (${request.timing.duration}ms)`);
+  }
+
+  private handleRequestError(details: any) {
+    const request = this.capturedRequests.get(details.requestId);
+    if (!request) return;
+
+    request.timing.endTime = details.timeStamp;
+    request.timing.duration = details.timeStamp - request.timing.startTime;
+    request.status = 0; // Error status
+
+    this.capturedRequests.set(details.requestId, request);
+    this.notifyDevTools('REQUEST_COMPLETED', request);
+
+    console.log(`❌ Request error: ${request.method} ${request.url} - ${details.error}`);
+  }
+
+  private notifyDevTools(type: MonitorMessage['type'], request: MonitoredRequest) {
+    const message: MonitorMessage = { type, request };
+    
+    this.connectedPorts.forEach(port => {
+      try {
+        port.postMessage(message);
+      } catch (error) {
+        console.warn('Failed to send message to DevTools:', error);
+        this.connectedPorts.delete(port);
+      }
+    });
+  }
+
+  addPort(port: chrome.runtime.Port) {
+    this.connectedPorts.add(port);
+    console.log(`📱 DevTools port connected. Total ports: ${this.connectedPorts.size}`);
+  }
+
+  removePort(port: chrome.runtime.Port) {
+    this.connectedPorts.delete(port);
+    console.log(`📱 DevTools port disconnected. Total ports: ${this.connectedPorts.size}`);
+  }
+
+  startMonitoring(tabId: number) {
+    this.monitoredTabIds.add(tabId);
+    this.isMonitoring = true;
+    console.log(`🔍 Started monitoring tab ${tabId}. Monitored tabs: ${Array.from(this.monitoredTabIds)}`);
+  }
+
+  stopMonitoring(tabId: number) {
+    this.monitoredTabIds.delete(tabId);
+    if (this.monitoredTabIds.size === 0) {
+      this.isMonitoring = false;
+    }
+    console.log(`⏹️ Stopped monitoring tab ${tabId}. Monitored tabs: ${Array.from(this.monitoredTabIds)}`);
+  }
+
+  getRequest(requestId: string): MonitoredRequest | undefined {
+    return this.capturedRequests.get(requestId);
+  }
+}
+
+// Initialize Network Monitor
+const networkMonitor = new NetworkMonitor();
+networkMonitor.init();
+
 // Core fetch execution with Chrome Extension privileges
 const executeFetch = async (url: string, options: RequestInit): Promise<FetchResponse['result']> => {
   const startTime = Date.now();
@@ -279,12 +518,26 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'devtools-panel') {
     console.log('✅ DevTools panel connected successfully');
     
-    port.onMessage.addListener((message: FetchRequest) => {
-      console.log('📨 Received message from DevTools:', message.type, message.requestId);
+    // Add port to network monitor
+    networkMonitor.addPort(port);
+    
+    port.onMessage.addListener((message: FetchRequest | MonitorMessage) => {
+      console.log('📨 Received message from DevTools:', message.type);
       
       if (message.type === 'EXECUTE_FETCH') {
-        console.log(`🎯 Processing fetch request: ${message.options.method || 'GET'} ${message.url}`);
-        handleFetchRequest(message, port);
+        const fetchMessage = message as FetchRequest;
+        console.log(`🎯 Processing fetch request: ${fetchMessage.options.method || 'GET'} ${fetchMessage.url}`);
+        handleFetchRequest(fetchMessage, port);
+      } else if (message.type === 'START_MONITORING') {
+        const monitorMessage = message as MonitorMessage;
+        if (monitorMessage.tabId) {
+          networkMonitor.startMonitoring(monitorMessage.tabId);
+        }
+      } else if (message.type === 'STOP_MONITORING') {
+        const monitorMessage = message as MonitorMessage;
+        if (monitorMessage.tabId) {
+          networkMonitor.stopMonitoring(monitorMessage.tabId);
+        }
       } else {
         console.warn('⚠️ Unknown message type:', message.type);
       }
@@ -293,6 +546,9 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onDisconnect.addListener(() => {
       const error = chrome.runtime.lastError;
       console.log('🔌 DevTools panel disconnected:', error?.message || 'Clean disconnect');
+      
+      // Remove port from network monitor
+      networkMonitor.removePort(port);
     });
   } else {
     console.warn('⚠️ Unknown port connection:', port.name);

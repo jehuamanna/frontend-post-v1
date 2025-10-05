@@ -44,6 +44,27 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 
 
 export type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 
+// Network Monitoring Types
+export interface MonitoredRequest {
+  id: string;
+  tabId: number;
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body?: string;
+  timestamp: number;
+  status?: number;
+  responseHeaders?: Record<string, string>;
+  responseBody?: string;
+  timing: {
+    startTime: number;
+    endTime?: number;
+    duration?: number;
+  };
+  size?: number;
+  initiator?: string;
+}
+
 export interface TabContextType {
   tabs: Tab[];
   activeTabId: string;

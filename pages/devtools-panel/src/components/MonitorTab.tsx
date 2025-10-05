@@ -1,0 +1,220 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { MonitoredRequest } from '../types';
+
+interface MonitorTabProps {
+  onRequestSelect: (request: MonitoredRequest) => void;
+}
+
+const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.Element => {
+  const [requests, setRequests] = useState<MonitoredRequest[]>([]);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [port, setPort] = useState<chrome.runtime.Port | null>(null);
+
+  // Initialize Chrome runtime connection
+  useEffect(() => {
+    try {
+      const runtimePort = chrome.runtime.connect({ name: 'devtools-panel' });
+      setPort(runtimePort);
+
+      runtimePort.onMessage.addListener((message) => {
+        if (message.type === 'REQUEST_CAPTURED') {
+          setRequests(prev => [message.request, ...prev.slice(0, 99)]); // Keep last 100 requests
+        } else if (message.type === 'REQUEST_COMPLETED') {
+          setRequests(prev => prev.map(req => 
+            req.id === message.request.id ? message.request : req
+          ));
+        }
+      });
+
+      runtimePort.onDisconnect.addListener(() => {
+        console.log('Monitor port disconnected');
+        setPort(null);
+        setIsMonitoring(false);
+      });
+
+      return () => {
+        runtimePort.disconnect();
+      };
+    } catch (error) {
+      console.error('Failed to connect to background script:', error);
+      return () => {}; // Return empty cleanup function
+    }
+  }, []);
+
+  const getCurrentTabId = useCallback(async (): Promise<number> => {
+    return new Promise((resolve) => {
+      const tabId = chrome.devtools.inspectedWindow.tabId;
+      resolve(tabId || 0);
+    });
+  }, []);
+
+  const handleStartMonitoring = useCallback(async () => {
+    if (!port) return;
+
+    try {
+      const tabId = await getCurrentTabId();
+      port.postMessage({ 
+        type: 'START_MONITORING', 
+        tabId 
+      });
+      setIsMonitoring(true);
+      console.log('Started monitoring tab:', tabId);
+    } catch (error) {
+      console.error('Failed to start monitoring:', error);
+    }
+  }, [port, getCurrentTabId]);
+
+  const handleStopMonitoring = useCallback(async () => {
+    if (!port) return;
+
+    try {
+      const tabId = await getCurrentTabId();
+      port.postMessage({ 
+        type: 'STOP_MONITORING', 
+        tabId 
+      });
+      setIsMonitoring(false);
+      console.log('Stopped monitoring tab:', tabId);
+    } catch (error) {
+      console.error('Failed to stop monitoring:', error);
+    }
+  }, [port, getCurrentTabId]);
+
+  const handleClearRequests = useCallback(() => {
+    setRequests([]);
+  }, []);
+
+  const handleRequestClick = useCallback((request: MonitoredRequest) => {
+    onRequestSelect(request);
+  }, [onRequestSelect]);
+
+  const getStatusColor = (status?: number) => {
+    if (!status) return 'text-gray-500';
+    if (status < 300) return 'text-green-600';
+    if (status < 400) return 'text-blue-600';
+    if (status < 500) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getMethodColor = (method: string) => {
+    switch (method.toUpperCase()) {
+      case 'GET': return 'bg-green-100 text-green-800';
+      case 'POST': return 'bg-blue-100 text-blue-800';
+      case 'PUT': return 'bg-yellow-100 text-yellow-800';
+      case 'DELETE': return 'bg-red-100 text-red-800';
+      case 'PATCH': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      return `${urlObj.pathname}${urlObj.search}`;
+    } catch {
+      return url;
+    }
+  };
+
+  const formatDuration = (duration?: number) => {
+    if (!duration) return '-';
+    if (duration < 1000) return `${Math.round(duration)}ms`;
+    return `${(duration / 1000).toFixed(1)}s`;
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* Monitor Controls */}
+      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
+            disabled={!port}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              isMonitoring 
+                ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                : 'bg-green-100 text-green-700 hover:bg-green-200'
+            } ${!port ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isMonitoring ? '⏹️ Stop' : '▶️ Start'} Monitor
+          </button>
+          
+          <div className="flex items-center space-x-2 text-xs text-gray-600">
+            <div className={`w-2 h-2 rounded-full ${isMonitoring ? 'bg-green-500' : 'bg-gray-400'}`} />
+            <span>{isMonitoring ? 'Monitoring' : 'Stopped'}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-500">
+            {requests.length} request{requests.length !== 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={handleClearRequests}
+            className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
+      {/* Request List */}
+      <div className="flex-1 overflow-auto">
+        {requests.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="text-4xl mb-2">📡</div>
+            <div className="text-sm">
+              {isMonitoring ? 'Waiting for network requests...' : 'Click Start Monitor to capture requests'}
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {requests.map((request) => (
+              <div
+                key={request.id}
+                onClick={() => handleRequestClick(request)}
+                className="p-3 hover:bg-gray-50 cursor-pointer border-l-4 border-transparent hover:border-blue-400 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    {/* Method Badge */}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(request.method)}`}>
+                      {request.method}
+                    </span>
+                    
+                    {/* URL */}
+                    <span className="text-sm font-mono truncate flex-1" title={request.url}>
+                      {formatUrl(request.url)}
+                    </span>
+                  </div>
+                  
+                  {/* Status and Timing */}
+                  <div className="flex items-center space-x-3 text-xs">
+                    <span className={`font-medium ${getStatusColor(request.status)}`}>
+                      {request.status || 'Pending'}
+                    </span>
+                    <span className="text-gray-500">
+                      {formatDuration(request.timing.duration)}
+                    </span>
+                    <span className="text-gray-400">
+                      {new Date(request.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Additional Info */}
+                {request.initiator && (
+                  <div className="mt-1 text-xs text-gray-500 truncate">
+                    From: {request.initiator}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MonitorTab;

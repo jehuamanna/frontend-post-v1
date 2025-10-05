@@ -7,11 +7,12 @@ import { TabBar } from './components/TabBar';
 import { RequestForm } from './components/RequestForm';
 import { ResponseView } from './components/ResponseView';
 import { FetchCurlModal } from './components/FetchCurlModal';
-import { HttpRequest, HttpResponse } from './types';
+import MonitorTab from './components/MonitorTab';
+import { HttpRequest, HttpResponse, MonitoredRequest } from './types';
 import { chromeHttpClient } from './utils/chromeHttpClient';
 
 const Panel = () => {
-  const [activeContentTab, setActiveContentTab] = useState<'request' | 'response'>('request');
+  const [activeContentTab, setActiveContentTab] = useState<'monitor' | 'request' | 'response'>('monitor');
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     initialValue?: string;
@@ -33,9 +34,70 @@ const Panel = () => {
     clearRequest,
   } = useTabs();
 
-  const handleContentTabClick = useCallback((tab: 'request' | 'response') => {
+  const handleContentTabClick = useCallback((tab: 'monitor' | 'request' | 'response') => {
     setActiveContentTab(tab);
   }, []);
+
+  const handleMonitoredRequestSelect = useCallback((monitoredRequest: MonitoredRequest) => {
+    if (!activeTabId) return;
+
+    // Convert MonitoredRequest to HttpRequest format
+    const httpRequest: Partial<HttpRequest> = {
+      url: monitoredRequest.url,
+      method: monitoredRequest.method as HttpRequest['method'],
+      headers: monitoredRequest.headers || {},
+      body: monitoredRequest.body || '',
+      params: {} // Extract from URL if needed
+    };
+
+    // Extract query parameters from URL
+    try {
+      const url = new URL(monitoredRequest.url);
+      const params: Record<string, string> = {};
+      url.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      httpRequest.params = params;
+    } catch (error) {
+      console.warn('Failed to parse URL for query params:', error);
+    }
+
+    // Update the current tab with the monitored request data
+    updateRequest(activeTabId, httpRequest);
+
+    // If we have response data, update that too
+    if (monitoredRequest.status && monitoredRequest.responseHeaders) {
+      const httpResponse: HttpResponse = {
+        status: monitoredRequest.status,
+        statusText: `${monitoredRequest.status}`,
+        headers: monitoredRequest.responseHeaders,
+        body: monitoredRequest.responseBody || '',
+        size: monitoredRequest.size || 0,
+        time: monitoredRequest.timing.duration || 0,
+        url: monitoredRequest.url,
+        ok: monitoredRequest.status >= 200 && monitoredRequest.status < 300,
+        cookies: [],
+        duration: monitoredRequest.timing.duration
+      };
+      updateResponse(activeTabId, httpResponse);
+    }
+
+    // Update tab name based on the request
+    try {
+      const url = new URL(monitoredRequest.url);
+      const endpoint = url.pathname.split('/').pop() || 'API';
+      updateTab(activeTabId, {
+        name: `${endpoint} ${monitoredRequest.method}`
+      });
+    } catch (error) {
+      updateTab(activeTabId, {
+        name: `${monitoredRequest.method} Request`
+      });
+    }
+
+    // Switch to Request tab to show the populated data
+    setActiveContentTab('request');
+  }, [activeTabId, updateRequest, updateResponse, updateTab]);
 
   const handleNewTab = useCallback(() => {
     createTab();
@@ -296,13 +358,22 @@ const Panel = () => {
         {/* Tab navigation */}
         <div className="flex border-b border-gray-300 bg-white">
           <button
+            onClick={() => handleContentTabClick('monitor')}
+            className={`px-4 py-2 text-sm font-semibold transition-colors ${activeContentTab === 'monitor'
+              ? 'bg-white border-b-2 border-gray-900 text-gray-900'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+          >
+            📡 Monitor
+          </button>
+          <button
             onClick={() => handleContentTabClick('request')}
             className={`px-4 py-2 text-sm font-semibold transition-colors ${activeContentTab === 'request'
               ? 'bg-white border-b-2 border-gray-900 text-gray-900'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
-            Request
+            📤 Request
           </button>
           <button
             onClick={() => handleContentTabClick('response')}
@@ -311,8 +382,13 @@ const Panel = () => {
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
           >
-            Response
+            📥 Response
           </button>
+        </div>
+
+        {/* Monitor tab content */}
+        <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'monitor' ? 'hidden' : ''}`}>
+          <MonitorTab onRequestSelect={handleMonitoredRequestSelect} />
         </div>
 
         {/* Request tab content */}
