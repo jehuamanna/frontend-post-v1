@@ -188,15 +188,40 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
           // Simple header parsing
           const headerStr = headersMatch[1];
           const headers: Record<string, string> = {};
-          const headerMatches = headerStr.match(/['"`]([^'"`]+)['"`]\s*:\s*['"`]([^'"`]+)['"`]/g);
+          // Enhanced regex to handle multiple header formats
+          const headerMatches = headerStr.match(/['"`]([^'"`]+)['"`]\s*:\s*['"`]([^'"`]+)['"`]/g) ||
+                               headerStr.match(/([a-zA-Z-]+)\s*:\s*['"`]([^'"`]+)['"`]/g) ||
+                               headerStr.match(/([a-zA-Z-]+)\s*:\s*([^,}\n]+)(?=,|\s*})/g);
           if (headerMatches) {
             headerMatches.forEach(match => {
-              const [, key, value] = match.match(/['"`]([^'"`]+)['"`]\s*:\s*['"`]([^'"`]+)['"`]/) || [];
+              // Try different patterns to extract key-value pairs
+              let key, value;
+              
+              // Pattern 1: 'key': 'value'
+              let result = match.match(/['"`]([^'"`]+)['"`]\s*:\s*['"`]([^'"`]+)['"`]/);
+              if (result) {
+                [, key, value] = result;
+              } else {
+                // Pattern 2: key: 'value' 
+                result = match.match(/([a-zA-Z-]+)\s*:\s*['"`]([^'"`]+)['"`]/);
+                if (result) {
+                  [, key, value] = result;
+                } else {
+                  // Pattern 3: key: value
+                  result = match.match(/([a-zA-Z-]+)\s*:\s*([^,}\n]+)/);
+                  if (result) {
+                    [, key, value] = result;
+                    value = value.trim().replace(/^['"`]|['"`]$/g, ''); // Remove quotes
+                  }
+                }
+              }
+              
               if (key && value) {
-                headers[key] = value;
+                headers[key.trim()] = value.trim();
               }
             });
           }
+          console.log('Fetch headers parsed:', headers);
           request.headers = headers;
         } catch {
           request.headers = {};
@@ -273,18 +298,42 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
 
       // Extract headers
       const headers: Record<string, string> = {};
-      const headerMatches = curlCommand.match(/-H\s+['"`]([^'"`]+)['"`]/g);
+      // Enhanced regex to handle multiple cURL header formats
+      const headerMatches = curlCommand.match(/-H\s+['"`]([^'"`]+)['"`]/g) ||
+                           curlCommand.match(/--header\s+['"`]([^'"`]+)['"`]/g) ||
+                           curlCommand.match(/-H\s+([^\s]+:[^\s]+)/g);
       if (headerMatches) {
         headerMatches.forEach((match: string) => {
-          const headerMatch = match.match(/-H\s+['"`]([^'"`]+)['"`]/);
-          if (headerMatch) {
-            const [key, ...valueParts] = headerMatch[1].split(':');
-            if (key && valueParts.length > 0) {
-              headers[key.trim()] = valueParts.join(':').trim();
+          let headerContent = '';
+          
+          // Try different patterns to extract header content
+          let result = match.match(/-H\s+['"`]([^'"`]+)['"`]/);
+          if (result) {
+            headerContent = result[1];
+          } else {
+            result = match.match(/--header\s+['"`]([^'"`]+)['"`]/);
+            if (result) {
+              headerContent = result[1];
+            } else {
+              result = match.match(/-H\s+([^\s]+:[^\s]+)/);
+              if (result) {
+                headerContent = result[1];
+              }
+            }
+          }
+          
+          if (headerContent && headerContent.includes(':')) {
+            const colonIndex = headerContent.indexOf(':');
+            const key = headerContent.substring(0, colonIndex).trim();
+            const value = headerContent.substring(colonIndex + 1).trim();
+            
+            if (key && value) {
+              headers[key] = value;
             }
           }
         });
       }
+      console.log('cURL headers parsed:', headers);
       request.headers = headers;
 
       // Extract body - comprehensive regex to handle all cURL data options
@@ -444,7 +493,7 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
     >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-2/3 flex flex-col m-4">
         {/* Header */}
-        <div className="flex items-center px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <div>
             <h2 className="text-base font-medium text-gray-900">
               Request Command Editor
@@ -455,6 +504,15 @@ curl -X POST "https://api.example.com/users?page=1&limit=10" \\
               </p>
             )}
           </div>
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded"
+            title="Close modal"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Copy Feedback */}

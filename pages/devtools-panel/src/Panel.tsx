@@ -8,8 +8,122 @@ import { RequestForm } from './components/RequestForm';
 import { ResponseView } from './components/ResponseView';
 import { FetchCurlModal } from './components/FetchCurlModal';
 import MonitorTab from './components/MonitorTab';
-import { HttpRequest, HttpResponse, MonitoredRequest } from './types';
 import { chromeHttpClient } from './utils/chromeHttpClient';
+import { HttpRequest, HttpResponse, MonitoredRequest } from './types';
+
+// Utility functions for generating curl/fetch commands
+const generateCurlCommand = (request: HttpRequest): string => {
+  const { url, method, headers, body, params } = request;
+  
+  // Build full URL with query parameters
+  let fullUrl = url;
+  if (params && Object.keys(params).length > 0) {
+    const urlObj = new URL(url);
+    Object.entries(params).forEach(([key, value]) => {
+      if (key.trim() && value) {
+        urlObj.searchParams.set(key, value);
+      }
+    });
+    fullUrl = urlObj.toString();
+  }
+  
+  let curlCommand = `curl -X ${method.toUpperCase()} "${fullUrl}"`;
+  
+  // Add headers
+  if (headers && Object.keys(headers).length > 0) {
+    Object.entries(headers).forEach(([key, value]) => {
+      if (key.trim() && value) {
+        curlCommand += ` \\\n  -H "${key}: ${value}"`;
+      }
+    });
+  }
+  
+  // Add body for methods that support it
+  const methodsWithBody = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  if (methodsWithBody.includes(method.toUpperCase()) && body && body.trim()) {
+    curlCommand += ` \\\n  -d '${body.replace(/'/g, "'\\''")}''`;
+  }
+  
+  return curlCommand;
+};
+
+const generateFetchCommand = (request: HttpRequest): string => {
+  const { url, method, headers, body, params } = request;
+  
+  // Build full URL with query parameters
+  let fullUrl = url;
+  if (params && Object.keys(params).length > 0) {
+    const urlObj = new URL(url);
+    Object.entries(params).forEach(([key, value]) => {
+      if (key.trim() && value) {
+        urlObj.searchParams.set(key, value);
+      }
+    });
+    fullUrl = urlObj.toString();
+  }
+  
+  let fetchCommand = `fetch('${fullUrl}'`;
+  
+  // Build options object
+  const options: string[] = [];
+  
+  if (method.toUpperCase() !== 'GET') {
+    options.push(`method: '${method.toUpperCase()}'`);
+  }
+  
+  // Add headers
+  if (headers && Object.keys(headers).length > 0) {
+    const headerEntries = Object.entries(headers)
+      .filter(([key, value]) => key.trim() && value)
+      .map(([key, value]) => `    '${key}': '${value}'`)
+      .join(',\n');
+    
+    if (headerEntries) {
+      options.push(`headers: {\n${headerEntries}\n  }`);
+    }
+  }
+  
+  // Add body for methods that support it
+  const methodsWithBody = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  if (methodsWithBody.includes(method.toUpperCase()) && body && body.trim()) {
+    try {
+      // Try to parse as JSON for proper formatting
+      JSON.parse(body);
+      options.push(`body: JSON.stringify(${body})`);
+    } catch {
+      // If not JSON, treat as string
+      options.push(`body: '${body.replace(/'/g, "\\'")}'`);
+    }
+  }
+  
+  if (options.length > 0) {
+    fetchCommand += `, {\n  ${options.join(',\n  ')}\n}`;
+  }
+  
+  fetchCommand += ')';
+  return fetchCommand;
+};
+
+// Copy to clipboard utility
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return true;
+    } catch (fallbackErr) {
+      console.error('Failed to copy to clipboard:', fallbackErr);
+      return false;
+    }
+  }
+};
 
 const Panel = () => {
   const [activeContentTab, setActiveContentTab] = useState<'monitor' | 'request' | 'response'>('monitor');
@@ -18,6 +132,8 @@ const Panel = () => {
     initialValue?: string;
   }>({ isOpen: false });
   const [clearCounter, setClearCounter] = useState(0);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
 
   const {
     tabs,
@@ -197,6 +313,41 @@ const Panel = () => {
     }
   }, [activeTabId, clearRequest]);
 
+  // Copy handlers for curl/fetch commands
+  const handleCopyCurl = useCallback(async () => {
+    if (activeTab?.data.request) {
+      const curlCommand = generateCurlCommand(activeTab.data.request);
+      const success = await copyToClipboard(curlCommand);
+      setCopyFeedback(success ? 'cURL copied!' : 'Copy failed');
+      
+      // Clear feedback after 2 seconds
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }
+  }, [activeTab]);
+
+  const handleCopyFetch = useCallback(async () => {
+    if (activeTab?.data.request) {
+      const fetchCommand = generateFetchCommand(activeTab.data.request);
+      const success = await copyToClipboard(fetchCommand);
+      setCopyFeedback(success ? 'Fetch copied!' : 'Copy failed');
+      
+      // Clear feedback after 2 seconds
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }
+  }, [activeTab]);
+
+  // Cancel current request
+  const handleCancelRequest = useCallback(() => {
+    if (currentRequestId) {
+      const success = chromeHttpClient.cancelRequest(currentRequestId);
+      if (success) {
+        setCopyFeedback('Request cancelled');
+        setTimeout(() => setCopyFeedback(null), 2000);
+      }
+      setCurrentRequestId(null);
+    }
+  }, [currentRequestId]);
+
   // Convert HttpRequest to Chrome Extension format and execute
   const executeRequestWithChromeClient = useCallback(async (request: HttpRequest): Promise<HttpResponse> => {
     console.log('🔄 Converting request for Chrome Extension client:', {
@@ -306,6 +457,10 @@ const Panel = () => {
     updateTab(activeTabId, { isLoading: true, lastError: undefined });
     
     try {
+      // Generate request ID for tracking
+      const requestId = `${request.url}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      setCurrentRequestId(requestId);
+      
       // Execute the HTTP request using Chrome Extension client
       const response = await executeRequestWithChromeClient(request);
       
@@ -314,6 +469,9 @@ const Panel = () => {
       
       // Switch to response tab to show results
       setActiveContentTab('response');
+      
+      // Clear current request ID
+      setCurrentRequestId(null);
       
     } catch (error) {
       // Handle execution errors
@@ -337,6 +495,9 @@ const Panel = () => {
       });
       
       setActiveContentTab('response');
+      
+      // Clear current request ID
+      setCurrentRequestId(null);
     } finally {
       // Clear loading state
       updateTab(activeTabId, { isLoading: false });
@@ -375,6 +536,27 @@ const Panel = () => {
         >
           Request Command
         </button>
+        
+        {/* Copy buttons for modified request */}
+        {activeTab?.data.request.url && (
+          <>
+            <button
+              onClick={handleCopyCurl}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white"
+              title="Copy as cURL command"
+            >
+              Copy cURL
+            </button>
+            <button
+              onClick={handleCopyFetch}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white"
+              title="Copy as fetch command"
+            >
+              Copy Fetch
+            </button>
+          </>
+        )}
+        
         <div className="flex-1"></div>
         <button
           onClick={handleClear}
@@ -393,6 +575,17 @@ const Panel = () => {
         >
           {activeTab?.isLoading ? 'Executing...' : 'Execute'}
         </button>
+        
+        {/* Cancel button - only show when request is in progress */}
+        {activeTab?.isLoading && currentRequestId && (
+          <button
+            onClick={handleCancelRequest}
+            className="px-3 py-1.5 text-xs border border-red-300 rounded hover:bg-red-50 transition-colors font-medium text-red-700 bg-white"
+            title="Cancel current request"
+          >
+            Cancel
+          </button>
+        )}
       </div>
 
       {/* Third layer - Request and Response tabs */}
@@ -471,13 +664,12 @@ const Panel = () => {
         </span>
       </div>
 
-      {/* Fetch/cURL Modal */}
-      <FetchCurlModal
-        isOpen={modalState.isOpen}
-        initialValue={modalState.initialValue}
-        onClose={handleModalClose}
-        onSave={handleModalSave}
-      />
+      {/* Copy Feedback */}
+      {copyFeedback && (
+        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-md shadow-lg z-50">
+          {copyFeedback}
+        </div>
+      )}
     </div>
   );
 };

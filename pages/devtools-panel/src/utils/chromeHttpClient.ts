@@ -45,6 +45,7 @@ class ChromeHttpClient {
   private pendingRequests = new Map<string, {
     resolve: (value: FetchResult) => void;
     reject: (reason: Error) => void;
+    abortController?: AbortController;
   }>();
 
   constructor() {
@@ -168,10 +169,13 @@ class ChromeHttpClient {
     console.log(`🚀 [${requestId}] Executing request: ${options.method || 'GET'} ${url}`);
     console.log(`📋 [${requestId}] Request options:`, this.sanitizeOptions(options));
 
+    // Create AbortController for cancellation support
+    const abortController = new AbortController();
+
     // Create promise for async response handling
     const requestPromise = new Promise<FetchResult>((resolve, reject) => {
-      // Store request handlers
-      this.pendingRequests.set(requestId, { resolve, reject });
+      // Store request handlers with abort controller
+      this.pendingRequests.set(requestId, { resolve, reject, abortController });
       console.log(`📝 [${requestId}] Added to pending requests (total: ${this.pendingRequests.size})`);
       
       // Send request to background script
@@ -204,6 +208,47 @@ class ChromeHttpClient {
     });
 
     return requestPromise;
+  }
+
+  // Cancel a specific request by ID
+  cancelRequest(requestId: string): boolean {
+    const pendingRequest = this.pendingRequests.get(requestId);
+    if (pendingRequest) {
+      console.log(`🚫 [${requestId}] Cancelling request`);
+      
+      // Trigger abort controller if available
+      if (pendingRequest.abortController) {
+        pendingRequest.abortController.abort();
+      }
+      
+      // Remove from pending requests and reject
+      this.pendingRequests.delete(requestId);
+      pendingRequest.reject(new Error('Request cancelled by user'));
+      
+      return true;
+    }
+    return false;
+  }
+
+  // Cancel all pending requests
+  cancelAllRequests(): number {
+    const count = this.pendingRequests.size;
+    console.log(`🚫 Cancelling ${count} pending requests`);
+    
+    this.pendingRequests.forEach((request, requestId) => {
+      if (request.abortController) {
+        request.abortController.abort();
+      }
+      request.reject(new Error('Request cancelled by user'));
+    });
+    
+    this.pendingRequests.clear();
+    return count;
+  }
+
+  // Get list of pending request IDs
+  getPendingRequestIds(): string[] {
+    return Array.from(this.pendingRequests.keys());
   }
 
   // Sanitize request options for message passing

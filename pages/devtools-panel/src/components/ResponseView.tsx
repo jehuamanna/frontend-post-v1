@@ -134,13 +134,63 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
   };
 
   const formatResponseBody = (body: string, contentType?: string) => {
+    if (!body) return '';
+    
     try {
-      if (contentType?.includes('application/json')) {
-        return JSON.stringify(JSON.parse(body), null, 2);
+      // Handle JSON content
+      if (contentType?.includes('application/json') || contentType?.includes('text/json')) {
+        const parsed = JSON.parse(body);
+        return JSON.stringify(parsed, null, 2);
       }
-    } catch {
-      // If JSON parsing fails, return original body
+      
+      // Handle HTML content
+      if (contentType?.includes('text/html') || contentType?.includes('application/xhtml')) {
+        // Simple HTML formatting - add line breaks between tags
+        let formatted = body
+          .replace(/></g, '>\n<')
+          .replace(/^\s+|\s+$/g, '');
+        
+        // Add basic indentation
+        const lines = formatted.split('\n');
+        let indentLevel = 0;
+        const indentedLines = lines.map(line => {
+          const trimmed = line.trim();
+          if (!trimmed) return '';
+          
+          // Decrease indent for closing tags
+          if (trimmed.startsWith('</')) {
+            indentLevel = Math.max(0, indentLevel - 1);
+          }
+          
+          const indentedLine = '  '.repeat(indentLevel) + trimmed;
+          
+          // Increase indent for opening tags (but not self-closing)
+          if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>')) {
+            indentLevel++;
+          }
+          
+          return indentedLine;
+        });
+        
+        return indentedLines.filter(line => line.length > 0).join('\n');
+      }
+      
+      // Handle XML content
+      if (contentType?.includes('application/xml') || contentType?.includes('text/xml')) {
+        return body
+          .replace(/></g, '>\n<')
+          .replace(/^\s+|\s+$/g, '')
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .join('\n');
+      }
+      
+    } catch (error) {
+      console.warn('Failed to format response body:', error);
+      // If formatting fails, return original body
     }
+    
     return body;
   };
 

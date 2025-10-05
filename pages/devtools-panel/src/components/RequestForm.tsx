@@ -101,7 +101,20 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   }, [onRequestChange]);
 
   const handleUrlChange = useCallback((url: string) => {
-    onRequestChange({ url });
+    // Parse query parameters from URL and sync with params state
+    try {
+      const urlObj = new URL(url);
+      const params: Record<string, string> = {};
+      urlObj.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      // Update both URL and params
+      onRequestChange({ url, params });
+    } catch (error) {
+      // If URL is invalid, just update the URL field
+      onRequestChange({ url });
+    }
   }, [onRequestChange]);
 
   const handleBodyChange = useCallback((body: string) => {
@@ -145,14 +158,36 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     newParams[index] = [key, value];
     setQueryParams(newParams);
 
-    // Convert to object and update request
+    // Convert to object
     const paramsObj = newParams.reduce((acc, [k, v]) => {
       if (k.trim()) acc[k.trim()] = v;
       return acc;
     }, {} as Record<string, string>);
 
-    onRequestChange({ params: paramsObj });
-  }, [queryParams, onRequestChange]);
+    // Update URL with new query parameters
+    let updatedUrl = request.url;
+    try {
+      const urlObj = new URL(request.url || 'https://example.com');
+      // Clear existing search params
+      urlObj.search = '';
+      // Add new params
+      Object.entries(paramsObj).forEach(([k, v]) => {
+        if (k.trim()) {
+          urlObj.searchParams.set(k.trim(), v);
+        }
+      });
+      
+      // Only update URL if we had a valid base URL
+      if (request.url) {
+        updatedUrl = urlObj.toString();
+      }
+    } catch (error) {
+      // If URL parsing fails, just update params without URL sync
+      console.warn('Failed to sync query params with URL:', error);
+    }
+
+    onRequestChange({ params: paramsObj, url: updatedUrl });
+  }, [queryParams, onRequestChange, request.url]);
 
   const addParam = useCallback(() => {
     setQueryParams(prev => [...prev, ['', '']]);
@@ -168,9 +203,30 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         return acc;
       }, {} as Record<string, string>);
 
-      onRequestChange({ params: paramsObj });
+      // Update URL with remaining query parameters
+      let updatedUrl = request.url;
+      try {
+        const urlObj = new URL(request.url || 'https://example.com');
+        // Clear existing search params
+        urlObj.search = '';
+        // Add remaining params
+        Object.entries(paramsObj).forEach(([k, v]) => {
+          if (k.trim()) {
+            urlObj.searchParams.set(k.trim(), v);
+          }
+        });
+        
+        // Only update URL if we had a valid base URL
+        if (request.url) {
+          updatedUrl = urlObj.toString();
+        }
+      } catch (error) {
+        console.warn('Failed to sync query params with URL:', error);
+      }
+
+      onRequestChange({ params: paramsObj, url: updatedUrl });
     }
-  }, [queryParams, onRequestChange]);
+  }, [queryParams, onRequestChange, request.url]);
 
   // Copy functions for individual fields
   const copyText = useCallback(async (text: string, fieldName: string) => {
