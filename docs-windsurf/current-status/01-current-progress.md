@@ -555,27 +555,118 @@ curl -X POST "https://api.example.com/login" \
 4. **Request Queue**: Manage multiple concurrent requests
 
 
-**Sprint 2:**
-This sprint we fix bugs.
-[02-bugs.md](02-bugs.md)
-Give me solid plan and mofify the contents here in this section.
+### **🚀 CURRENT SPRINT 3: Bug Fixes & Polish** (2025-10-05)
+**🎯 Sprint Goal**: Fix critical bugs and enhance user experience with core functionality improvements
+**📅 Estimated Duration**: 4-6 hours
+**📊 Current Status**: READY TO START
+
+#### **🔥 HIGH PRIORITY TASKS (Core Functionality)**
+
+**Task 1: Query Parameters URL Sync** (Priority: CRITICAL, Est: 1 hour)
+- **Issue**: Query parameters when edited must reflect in the URL
+- **Impact**: Breaks core workflow - users can't see URL changes in real-time
+- **Solution Approach**: 
+  - Add bidirectional sync between query params and URL input
+  - Update URL when query params change, parse URL when URL changes
+  - Maintain proper URL encoding/decoding
+- **Files to Modify**: `RequestForm.tsx`, potentially `Panel.tsx`
+
+**Task 2: Headers Parsing Issues** (Priority: HIGH, Est: 1 hour)
+- **Issue**: Sometimes fetch/curl request command does not show the parsed headers
+- **Impact**: Parser functionality incomplete - affects command import workflow
+- **Solution Approach**:
+  - Debug and enhance header parsing regex in FetchCurlModal
+  - Add comprehensive test cases for various header formats
+  - Improve error handling and fallback parsing
+- **Files to Modify**: `FetchCurlModal.tsx`
+
+**Task 3: Copy Modified Request Button** (Priority: HIGH, Est: 45 minutes)
+- **Issue**: Button to copy the curl/fetch command of the modified request parameters
+- **Impact**: Essential developer workflow - need to export modified requests
+- **Solution Approach**:
+  - Generate curl/fetch command from current form state
+  - Add copy button in action bar or request form
+  - Include all current parameters (URL, method, headers, body, query params)
+- **Files to Modify**: `Panel.tsx` or `RequestForm.tsx`
+
+#### **🎯 MEDIUM PRIORITY TASKS (Enhanced UX)**
+
+**Task 4: Request Command Modal Close Button** (Priority: MEDIUM, Est: 15 minutes)
+- **Issue**: Close button for the 'Request Command' modal
+- **Impact**: Missing basic modal functionality - UX inconsistency
+- **Solution Approach**: Add close button (X) in modal header
+- **Files to Modify**: `FetchCurlModal.tsx`
+
+**Task 5: Request Cancellation** (Priority: MEDIUM, Est: 30 minutes)
+- **Issue**: Ability to cancel an ongoing request
+- **Impact**: Important for long-running requests - prevents UI blocking
+- **Solution Approach**:
+  - Add AbortController to HTTP client
+  - Show cancel button during request execution
+  - Handle cancellation state in UI
+- **Files to Modify**: `chromeHttpClient.ts`, `Panel.tsx`
+
+**Task 6: JSON/HTML Response Beautification** (Priority: MEDIUM, Est: 45 minutes)
+- **Issue**: Body content if json/html should be parsed and displayed as beautified
+- **Impact**: Improves response readability and debugging experience
+- **Solution Approach**:
+  - Add JSON.stringify with indentation for JSON responses
+  - Add HTML formatting for HTML responses
+  - Detect content type and apply appropriate formatting
+- **Files to Modify**: `ResponseView.tsx`
+
+#### **✨ LOW PRIORITY TASKS (Polish & Enhancement)**
+
+**Task 7: CodeMirror Body Editors** (Priority: LOW, Est: 1.5 hours)
+- **Issue**: Body of request and response sections should be CodeMirror editor
+- **Impact**: Enhancement - current textarea functional but less developer-friendly
+- **Solution Approach**: Replace textarea with CodeMirror in request/response body
+- **Files to Modify**: `RequestForm.tsx`, `ResponseView.tsx`
+
+**Task 8: Cookies Table Display** (Priority: LOW, Est: 30 minutes)
+- **Issue**: Cookies should be displayed in response section as a table
+- **Impact**: Enhancement - current display functional but less organized
+- **Solution Approach**: Create table component for cookie display
+- **Files to Modify**: `ResponseView.tsx`
+
+**Task 9: HTML Response Dual Display** (Priority: LOW, Est: 45 minutes)
+- **Issue**: HTML response should display both raw HTML and parsed HTML
+- **Impact**: Nice-to-have feature for HTML debugging
+- **Solution Approach**: Add tabs or split view for raw/rendered HTML
+- **Files to Modify**: `ResponseView.tsx`
+
+#### **Sprint Success Criteria:**
+- ✅ Query parameters sync with URL in real-time
+- ✅ All fetch/curl commands parse headers correctly
+- ✅ Copy button generates accurate curl/fetch from current form state
+- ✅ Modal has proper close functionality
+- ✅ Long requests can be cancelled
+- ✅ JSON/HTML responses are properly formatted
+
+#### **Sprint Metrics Target:**
+- **Duration**: 4-6 hours total
+- **High Priority**: 3 tasks (2.75 hours) - MUST COMPLETE
+- **Medium Priority**: 3 tasks (1.5 hours) - SHOULD COMPLETE
+- **Low Priority**: 3 tasks (2.75 hours) - NICE TO HAVE
+- **Bug Fixes**: 9 total issues addressed
+- **Files Modified**: ~6 core files
 
 ## **📋 Backlogs:**
 
 
-### **SPRINT 3-4: Chrome Extension & Persistence** (Short Term)
+### **SPRINT : Chrome Extension & Persistence** (Short Term)
 1. **Chrome Extension Setup**: Manifest and background scripts
 2. **Data Persistence**: Save/load requests using Chrome Storage
 3. **Request History**: Track and display previous requests
 4. **Error Handling**: Proper error states and messaging
 
-### **SPRINT 5-6: Advanced Features** (Medium Term)
+### **SPRINT : Advanced Features** (Medium Term)
 1. **Real-time Monitoring**: Intercept network requests
 2. **Advanced Response Viewers**: JSON/XML/HTML/Text viewers
 3. **Export Functionality**: Download responses to files
 4. **Performance Metrics**: Request timing and size analysis
 
-### **SPRINT 7: Testing & Quality Assurance** (Long Term)
+### **SPRINT : Testing & Quality Assurance** (Long Term)
 **🎯 Goal**: Comprehensive testing framework and quality assurance
 
 #### **Automated Testing Suite:**
