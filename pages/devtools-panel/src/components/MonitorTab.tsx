@@ -3,9 +3,10 @@ import { MonitoredRequest } from '../types';
 
 interface MonitorTabProps {
   onRequestSelect: (request: MonitoredRequest) => void;
+  onRequestDoubleClick: (request: MonitoredRequest) => void;
 }
 
-const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.Element => {
+const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubleClick }): React.JSX.Element => {
   const [requests, setRequests] = useState<MonitoredRequest[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
@@ -87,6 +88,10 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.E
   const handleRequestClick = useCallback((request: MonitoredRequest) => {
     onRequestSelect(request);
   }, [onRequestSelect]);
+
+  const handleRequestDoubleClick = useCallback((request: MonitoredRequest) => {
+    onRequestDoubleClick(request);
+  }, [onRequestDoubleClick]);
 
   const getStatusColor = (status?: number) => {
     if (!status) return 'text-gray-500';
@@ -172,6 +177,7 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect }): React.JSX.E
               <div
                 key={request.id}
                 onClick={() => handleRequestClick(request)}
+                onDoubleClick={() => handleRequestDoubleClick(request)}
                 className="p-3 hover:bg-gray-50 cursor-pointer border-l-4 border-transparent hover:border-gray-900 transition-colors"
               >
                 <div className="flex items-center justify-between">

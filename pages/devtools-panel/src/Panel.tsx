@@ -65,22 +65,8 @@ const Panel = () => {
     // Update the current tab with the monitored request data
     updateRequest(activeTabId, httpRequest);
 
-    // If we have response data, update that too
-    if (monitoredRequest.status && monitoredRequest.responseHeaders) {
-      const httpResponse: HttpResponse = {
-        status: monitoredRequest.status,
-        statusText: `${monitoredRequest.status}`,
-        headers: monitoredRequest.responseHeaders,
-        body: monitoredRequest.responseBody || '',
-        size: monitoredRequest.size || 0,
-        time: monitoredRequest.timing.duration || 0,
-        url: monitoredRequest.url,
-        ok: monitoredRequest.status >= 200 && monitoredRequest.status < 300,
-        cookies: [],
-        duration: monitoredRequest.timing.duration
-      };
-      updateResponse(activeTabId, httpResponse);
-    }
+    // Clear response data on single click
+    updateResponse(activeTabId, null);
 
     // Update tab name based on the request
     try {
@@ -98,6 +84,62 @@ const Panel = () => {
     // Switch to Request tab to show the populated data
     setActiveContentTab('request');
   }, [activeTabId, updateRequest, updateResponse, updateTab]);
+
+  const handleMonitoredRequestDoubleClick = useCallback((monitoredRequest: MonitoredRequest) => {
+    // Convert MonitoredRequest to HttpRequest format
+    const httpRequest: Partial<HttpRequest> = {
+      url: monitoredRequest.url,
+      method: monitoredRequest.method as HttpRequest['method'],
+      headers: monitoredRequest.headers || {},
+      body: monitoredRequest.body || '',
+      params: {} // Extract from URL if needed
+    };
+
+    // Extract query parameters from URL
+    try {
+      const url = new URL(monitoredRequest.url);
+      const params: Record<string, string> = {};
+      url.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      httpRequest.params = params;
+    } catch (error) {
+      console.warn('Failed to parse URL for query params:', error);
+    }
+
+    // Create tab name based on the request
+    let tabName: string;
+    try {
+      const url = new URL(monitoredRequest.url);
+      const endpoint = url.pathname.split('/').pop() || 'API';
+      tabName = `${endpoint} ${monitoredRequest.method}`;
+    } catch (error) {
+      tabName = `${monitoredRequest.method} Request`;
+    }
+
+    // Create a new tab with the monitored request data
+    const newTabId = createTab(tabName, httpRequest);
+
+    // If we have response data, update the new tab with response too
+    if (monitoredRequest.status && monitoredRequest.responseHeaders) {
+      const httpResponse: HttpResponse = {
+        status: monitoredRequest.status,
+        statusText: `${monitoredRequest.status}`,
+        headers: monitoredRequest.responseHeaders,
+        body: monitoredRequest.responseBody || '',
+        size: monitoredRequest.size || 0,
+        time: monitoredRequest.timing.duration || 0,
+        url: monitoredRequest.url,
+        ok: monitoredRequest.status >= 200 && monitoredRequest.status < 300,
+        cookies: [],
+        duration: monitoredRequest.timing.duration
+      };
+      updateResponse(newTabId, httpResponse);
+    }
+
+    // Switch to Request tab to show the populated data
+    setActiveContentTab('request');
+  }, [createTab, updateResponse]);
 
   const handleNewTab = useCallback(() => {
     createTab();
@@ -388,7 +430,10 @@ const Panel = () => {
 
         {/* Monitor tab content */}
         <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'monitor' ? 'hidden' : ''}`}>
-          <MonitorTab onRequestSelect={handleMonitoredRequestSelect} />
+          <MonitorTab 
+            onRequestSelect={handleMonitoredRequestSelect} 
+            onRequestDoubleClick={handleMonitoredRequestDoubleClick} 
+          />
         </div>
 
         {/* Request tab content */}
