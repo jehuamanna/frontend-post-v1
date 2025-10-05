@@ -4,6 +4,7 @@ import { MonitoredRequest } from '../types';
 interface MonitorTabProps {
   onRequestSelect: (request: MonitoredRequest) => void;
   onRequestDoubleClick: (request: MonitoredRequest) => void;
+  onRequestCountChange?: (filtered: number, total: number) => void;
 }
 
 type SortField = 'method' | 'url' | 'status' | 'duration' | 'timestamp';
@@ -14,12 +15,41 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubleClick }): React.JSX.Element => {
+interface FilterConfig {
+  search: string;
+  methods: string[];
+  statusCategories: string[];
+  timeRange: {
+    min?: number;
+    max?: number;
+    preset?: string;
+  };
+}
+
+const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubleClick, onRequestCountChange }): React.JSX.Element => {
   const [requests, setRequests] = useState<MonitoredRequest[]>([]);
-  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(true);
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' });
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [filterConfig, setFilterConfig] = useState<FilterConfig>(() => {
+    try {
+      const saved = localStorage.getItem('monitor-filters');
+      return saved ? JSON.parse(saved) : {
+        search: '',
+        methods: [],
+        statusCategories: [],
+        timeRange: {}
+      };
+    } catch {
+      return {
+        search: '',
+        methods: [],
+        statusCategories: [],
+        timeRange: {}
+      };
+    }
+  });
 
   // Cleanup click timer on unmount
   useEffect(() => {
@@ -29,6 +59,16 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
       }
     };
   }, [clickTimer]);
+
+  // Save filter config to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('monitor-filters', JSON.stringify(filterConfig));
+    } catch (error) {
+      console.warn('Failed to save filter config:', error);
+    }
+  }, [filterConfig]);
+
 
   // Initialize Chrome runtime connection with auto-reconnect
   useEffect(() => {
@@ -60,7 +100,7 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
           const error = chrome.runtime.lastError;
           console.log('Monitor port disconnected:', error?.message || 'Clean disconnect');
           setPort(null);
-          setIsMonitoring(false);
+          // Keep monitoring state as true - will auto-restart on reconnection
           currentPort = null;
 
           // Auto-reconnect after 2 seconds if not a clean shutdown
@@ -74,16 +114,24 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
 
         console.log('✅ Successfully connected to background script');
         
-        // Request current monitoring status to sync UI state
+        // Auto-start monitoring after connection
         setTimeout(async () => {
           try {
             const tabId = await getCurrentTabId();
+            // First request current status
             runtimePort.postMessage({ 
               type: 'GET_MONITORING_STATUS', 
               tabId 
             });
+            
+            // Then start monitoring automatically
+            runtimePort.postMessage({ 
+              type: 'START_MONITORING', 
+              tabId 
+            });
+            console.log('🚀 Auto-started monitoring for tab:', tabId);
           } catch (error) {
-            console.warn('Failed to request monitoring status:', error);
+            console.warn('Failed to auto-start monitoring:', error);
           }
         }, 100); // Small delay to ensure connection is fully established
       } catch (error) {
@@ -185,9 +233,80 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
     }));
   }, []);
 
-  // Sorted requests
-  const sortedRequests = useMemo(() => {
-    const sorted = [...requests].sort((a, b) => {
+  // Filter and sort requests
+  const filteredAndSortedRequests = useMemo(() => {
+    // First apply filters
+    let filtered = requests.filter(request => {
+      // Search filter
+      if (filterConfig.search) {
+        const searchTerm = filterConfig.search.toLowerCase();
+        const searchableText = [
+          request.url,
+          request.method,
+          request.status?.toString() || '',
+          request.initiator || ''
+        ].join(' ').toLowerCase();
+        
+        if (!searchableText.includes(searchTerm)) {
+          return false;
+        }
+      }
+      
+      // Method filter
+      if (filterConfig.methods.length > 0 && !filterConfig.methods.includes('ALL')) {
+        if (!filterConfig.methods.includes(request.method)) {
+          return false;
+        }
+      }
+      
+      // Status category filter
+      if (filterConfig.statusCategories.length > 0) {
+        const status = request.status;
+        let matchesCategory = false;
+        
+        for (const category of filterConfig.statusCategories) {
+          switch (category) {
+            case 'success':
+              if (status && status >= 200 && status < 300) matchesCategory = true;
+              break;
+            case 'redirect':
+              if (status && status >= 300 && status < 400) matchesCategory = true;
+              break;
+            case 'client-error':
+              if (status && status >= 400 && status < 500) matchesCategory = true;
+              break;
+            case 'server-error':
+              if (status && status >= 500) matchesCategory = true;
+              break;
+            case 'pending':
+              if (!status) matchesCategory = true;
+              break;
+          }
+        }
+        
+        if (!matchesCategory) {
+          return false;
+        }
+      }
+      
+      // Time range filter
+      if (filterConfig.timeRange.min !== undefined || filterConfig.timeRange.max !== undefined) {
+        const duration = request.timing.duration || 0;
+        
+        if (filterConfig.timeRange.min !== undefined && duration < filterConfig.timeRange.min) {
+          return false;
+        }
+        
+        if (filterConfig.timeRange.max !== undefined && duration > filterConfig.timeRange.max) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // Then apply sorting
+    const sorted = filtered.sort((a, b) => {
       let aValue: any, bValue: any;
       
       switch (sortConfig.field) {
@@ -221,7 +340,14 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
     });
     
     return sorted;
-  }, [requests, sortConfig]);
+  }, [requests, sortConfig, filterConfig]);
+
+  // Notify parent of request count changes
+  useEffect(() => {
+    if (onRequestCountChange) {
+      onRequestCountChange(filteredAndSortedRequests.length, requests.length);
+    }
+  }, [filteredAndSortedRequests.length, requests.length, onRequestCountChange]);
 
   const getStatusColor = (status?: number) => {
     if (!status) return 'text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs';
@@ -260,36 +386,159 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Monitor Controls */}
-      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
-            disabled={!port}
-            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-              isMonitoring 
-                ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' 
-                : 'bg-gray-900 text-white hover:bg-black'
-            } ${!port ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isMonitoring ? 'Stop' : 'Start'} Monitor
-          </button>
-          
-          <div className="flex items-center space-x-2 text-xs text-gray-600">
-            <div className={`w-2 h-2 rounded-full ${isMonitoring ? 'bg-gray-900' : 'bg-gray-400'}`} />
-            <span>{isMonitoring ? 'Monitoring' : 'Stopped'}</span>
+      <div className="p-3 border-b bg-gray-50 space-y-3">
+        {/* Top row - Monitor controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {/* Monitor toggle button */}
+            <button
+              onClick={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
+              disabled={!port}
+              className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${
+                isMonitoring 
+                  ? 'bg-gray-900 border-gray-900 text-white hover:bg-black hover:border-black' 
+                  : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+              } ${!port ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={isMonitoring ? 'Stop monitoring' : 'Start monitoring'}
+            >
+              {isMonitoring ? (
+                <div className="w-1.5 h-1.5 bg-white rounded-sm"></div>
+              ) : (
+                <div className="w-2 h-2 bg-gray-900 rounded-full"></div>
+              )}
+            </button>
+            
+            {/* Clear requests button */}
+            <button
+              onClick={handleClearRequests}
+              className="w-6 h-6 rounded-full border bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-800 hover:bg-gray-50 flex items-center justify-center transition-colors"
+              title="Clear all requests"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* Status indicator - only when not monitoring */}
+            {!isMonitoring && !port && (
+              <span className="text-xs text-gray-500">Connecting...</span>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-500">
-            {requests.length} request{requests.length !== 1 ? 's' : ''}
-          </span>
-          <button
-            onClick={handleClearRequests}
-            className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+        {/* Filter row */}
+        <div className="flex items-center space-x-3 text-xs">
+          {/* Search */}
+          <div className="flex-1 max-w-xs relative">
+            <input
+              type="text"
+              placeholder="Search requests..."
+              value={filterConfig.search}
+              onChange={(e) => setFilterConfig(prev => ({ ...prev, search: e.target.value }))}
+              className="w-full px-2 py-1 pr-6 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-400"
+            />
+            {filterConfig.search && (
+              <button
+                onClick={() => setFilterConfig(prev => ({ ...prev, search: '' }))}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs w-4 h-4 flex items-center justify-center"
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Method Filter */}
+          <select
+            value={filterConfig.methods.length === 0 ? 'ALL' : filterConfig.methods[0]}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFilterConfig(prev => ({
+                ...prev,
+                methods: value === 'ALL' ? [] : [value]
+              }));
+            }}
+            className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-400"
           >
-            Clear
-          </button>
+            <option value="ALL">All Methods</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+            <option value="HEAD">HEAD</option>
+            <option value="OPTIONS">OPTIONS</option>
+            <option value="TRACE">TRACE</option>
+            <option value="CONNECT">CONNECT</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterConfig.statusCategories.length === 0 ? 'all' : filterConfig.statusCategories[0]}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFilterConfig(prev => ({
+                ...prev,
+                statusCategories: value === 'all' ? [] : [value]
+              }));
+            }}
+            className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="all">All Status</option>
+            <option value="success">Success (2xx)</option>
+            <option value="redirect">Redirect (3xx)</option>
+            <option value="client-error">Client Error (4xx)</option>
+            <option value="server-error">Server Error (5xx)</option>
+            <option value="pending">Pending</option>
+          </select>
+
+          {/* Time Range Filter */}
+          <select
+            value={filterConfig.timeRange.preset || 'all'}
+            onChange={(e) => {
+              const value = e.target.value;
+              let timeRange = {};
+              
+              switch (value) {
+                case 'fast':
+                  timeRange = { max: 100, preset: 'fast' };
+                  break;
+                case 'medium':
+                  timeRange = { min: 100, max: 1000, preset: 'medium' };
+                  break;
+                case 'slow':
+                  timeRange = { min: 1000, preset: 'slow' };
+                  break;
+                default:
+                  timeRange = {};
+              }
+              
+              setFilterConfig(prev => ({ ...prev, timeRange }));
+            }}
+            className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="all">All Times</option>
+            <option value="fast">Fast (&lt; 100ms)</option>
+            <option value="medium">Medium (100ms - 1s)</option>
+            <option value="slow">Slow (&gt; 1s)</option>
+          </select>
+
+          {/* Clear Filters */}
+          {(filterConfig.search || filterConfig.methods.length > 0 || filterConfig.statusCategories.length > 0 || filterConfig.timeRange.preset) && (
+            <button
+              onClick={() => setFilterConfig({
+                search: '',
+                methods: [],
+                statusCategories: [],
+                timeRange: {}
+              })}
+              className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded border border-gray-300"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -394,7 +643,7 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
               
               {/* Table Body */}
               <tbody className="divide-y divide-gray-100">
-                {sortedRequests.map((request) => (
+                {filteredAndSortedRequests.map((request) => (
                   <tr
                     key={request.id}
                     onClick={() => handleRequestClick(request)}

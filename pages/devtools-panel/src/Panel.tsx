@@ -131,6 +131,7 @@ const Panel = () => {
     isOpen: boolean;
     initialValue?: string;
   }>({ isOpen: false });
+  const [monitorRequestCounts, setMonitorRequestCounts] = useState<{ filtered: number; total: number }>({ filtered: 0, total: 0 });
   const [clearCounter, setClearCounter] = useState(0);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
@@ -200,6 +201,10 @@ const Panel = () => {
     // Switch to Request tab to show the populated data
     setActiveContentTab('request');
   }, [activeTabId, updateRequest, updateResponse, updateTab]);
+
+  const handleMonitorRequestCountChange = useCallback((filtered: number, total: number) => {
+    setMonitorRequestCounts({ filtered, total });
+  }, []);
 
   const handleMonitoredRequestDoubleClick = useCallback((monitoredRequest: MonitoredRequest) => {
     // Convert MonitoredRequest to HttpRequest format
@@ -560,13 +565,15 @@ const Panel = () => {
         )}
         
         <div className="flex-1"></div>
+        
+        {/* Execute/Cancel toggle button for specific tab */}
         <button
           onClick={handleClear}
           className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white"
+          title="Clear all request data (URL, headers, body, params)"
         >
-          Clear
+          Clear All
         </button>
-        {/* Execute/Cancel toggle button for specific tab */}
         {activeTab?.isLoading && currentRequestId ? (
           <button
             onClick={handleCancelRequest}
@@ -627,7 +634,8 @@ const Panel = () => {
         <div className={`flex-1 min-h-0 overflow-auto ${activeContentTab !== 'monitor' ? 'hidden' : ''}`}>
           <MonitorTab 
             onRequestSelect={handleMonitoredRequestSelect} 
-            onRequestDoubleClick={handleMonitoredRequestDoubleClick} 
+            onRequestDoubleClick={handleMonitoredRequestDoubleClick}
+            onRequestCountChange={handleMonitorRequestCountChange}
           />
         </div>
 
@@ -660,7 +668,13 @@ const Panel = () => {
 
       {/* Bottom layer for footer */}
       <div className="h-8 border-t border-gray-300 px-3 text-xs text-gray-600 flex items-center justify-between bg-gray-100">
-        <span className="font-medium">Frontend Post - API Testing Tool</span>
+        <div className="flex items-center space-x-4">
+          {activeContentTab === 'monitor' && (
+            <span className="font-medium">
+              {monitorRequestCounts.filtered} of {monitorRequestCounts.total} request{monitorRequestCounts.total !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
         <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-800 border border-gray-200">
           Ready
         </span>
