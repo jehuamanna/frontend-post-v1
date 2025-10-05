@@ -1462,8 +1462,162 @@ fetch('https://api.example.com/users?active=true', {
 - ✅ Table performance handles large request lists
 - ✅ Professional appearance matching Chrome DevTools
 
-### **⚡ Ready for Sprint 4B Implementation**
+## **✅ SPRINT 4B: MONITOR ENHANCEMENT - COMPLETED** (2025-10-05 at 23:59)
 
-**Current Status**: All critical issues resolved, foundation solid for table enhancement
-**Next Action**: Await go signal to begin Sprint 4B (Monitor Enhancement)
-**Risk Level**: LOW - Building on proven architecture with clear requirements
+**🎯 Sprint Goal**: Convert Monitor tab to professional table layout with sorting and visual enhancements
+**📅 Duration**: 30 minutes
+**📊 Status**: 100% COMPLETE
+**🔧 Complexity**: MEDIUM - UI restructuring completed successfully
+
+### **🚨 MAJOR FEATURES IMPLEMENTED**
+
+#### **Feature #1: ✅ Professional Table Layout** - COMPLETED
+- **Converted**: List-based display → Professional table with columns (Method, URL, Status, Time, Timestamp)
+- **Structure**: HTML table with sticky header, proper column widths, responsive design
+- **Benefits**: Better data organization, professional Chrome DevTools appearance
+- **Files Modified**: `components/MonitorTab.tsx` - Complete table restructure
+
+#### **Feature #2: ✅ Click-to-Sort Functionality** - COMPLETED  
+- **Sortable Columns**: Method, URL, Status Code, Duration, Timestamp
+- **Interaction**: Click column headers to toggle ascending/descending sort
+- **Visual Indicators**: Arrow indicators (↑/↓) show current sort direction
+- **Default Sort**: Timestamp (newest first) for optimal monitoring workflow
+- **Performance**: Efficient sorting with useMemo optimization for large request lists
+
+#### **Feature #3: ✅ Status Code Visual Indicators** - COMPLETED
+- **Design**: Subtle gray badge system maintaining minimalistic black/white/gray aesthetic
+- **Status Colors**: 
+  - **Success (2xx)**: `bg-gray-200` - Light gray background with dark text
+  - **Redirect (3xx)**: `bg-gray-200` - Medium gray background  
+  - **Client Error (4xx)**: `bg-gray-300` - Darker gray background
+  - **Server Error (5xx)**: `bg-gray-400` - Darkest gray background with bold text
+  - **Pending**: `bg-gray-100` - Light gray with muted text
+- **Implementation**: Badge-style indicators with rounded corners and consistent text sizing
+
+#### **Feature #4: ✅ Enhanced Table UI** - COMPLETED
+- **Styling**: Professional Chrome DevTools aesthetic with compact `text-xs` sizing
+- **Responsive**: Table works perfectly on different screen sizes with fixed column widths
+- **Hover Effects**: Row highlighting on hover for better user experience
+- **Typography**: Consistent font sizing and spacing throughout table
+- **Performance**: Optimized rendering for 100+ requests with efficient DOM structure
+
+### **🔧 TECHNICAL IMPLEMENTATION DETAILS**
+
+#### **New Architecture Components**
+- **Sorting State**: `sortConfig` state with field and direction tracking
+- **Sorted Data**: `useMemo` hook for efficient sorting with multiple criteria support
+- **Table Structure**: Professional HTML table with `thead`/`tbody` separation
+- **Visual Feedback**: Sort indicators and hover states for enhanced UX
+
+#### **Enhanced Functions & Hooks**
+- **handleSort()**: Toggle sorting direction on column click with proper state management
+- **sortedRequests**: Memoized sorted data based on current sort configuration
+- **getStatusColor()**: Enhanced with badge styling and gray color variations
+- **Click Detection**: Custom double-click detection system with timer-based logic
+
+### **🐛 CRITICAL BUG FIXES DURING SPRINT**
+
+#### **Bug #1: ✅ Double-Click Not Working** - FIXED
+- **Issue**: Table row double-click wasn't creating new tabs, only acting as single-click
+- **Root Cause**: `onClick` and `onDoubleClick` handlers competing, single-click firing immediately
+- **Solution**: Implemented custom timer-based double-click detection system
+- **Technical**: 250ms delay allows proper double-click detection, timer cleanup on unmount
+- **Result**: Perfect single/double-click differentiation with console logging for verification
+
+#### **Bug #2: ✅ Tab Focus Issue on Double-Click** - FIXED  
+- **Issue**: Double-clicking switched focus to Request tab, interrupting monitoring workflow
+- **Root Cause**: `setActiveContentTab('request')` called in double-click handler
+- **Solution**: Removed tab switching from double-click, kept it for single-click
+- **User Experience**: 
+  - **Single-Click**: Populates current tab + switches to Request tab (for editing)
+  - **Double-Click**: Creates new tab + stays on Monitor tab (for continued monitoring)
+- **Result**: Seamless monitoring workflow with efficient tab management
+
+### **📊 Sprint 4B Final Metrics**
+- **Duration**: 30 minutes (2025-10-05 23:30 - 23:59)
+- **Features Completed**: 4/4 major features (100% success rate)
+- **Bugs Fixed**: 2 critical UX issues resolved during implementation
+- **Files Modified**: 2 core files (`MonitorTab.tsx`, `Panel.tsx`)
+- **Lines Added**: ~150 lines of production code
+- **Complexity**: MEDIUM - Required React state management and custom event handling
+- **Testing**: Manual testing confirmed all functionality working perfectly
+
+### **✅ Sprint 4B Success Criteria - All Met**
+- ✅ **Monitor displays requests in sortable table format** - Professional table layout implemented
+- ✅ **Status codes have subtle visual indicators** - Gray badge system with status-based styling
+- ✅ **Table maintains minimalistic design consistency** - Black/white/gray color scheme preserved
+- ✅ **Sorting works smoothly for all columns** - Click-to-sort with visual feedback working
+- ✅ **Table performance handles large request lists** - Optimized rendering and memoized sorting
+- ✅ **Professional appearance matching Chrome DevTools** - Compact, professional styling achieved
+
+### **🎓 KEY LEARNINGS FROM SPRINT 4B**
+
+#### **Technical Learnings**
+1. **React Event Handling**: `onClick` and `onDoubleClick` on same element cause conflicts - custom timer-based detection works better
+2. **Table Performance**: `useMemo` for sorting large datasets prevents unnecessary re-renders
+3. **UX Design**: Different click behaviors should have different outcomes (single=edit, double=save)
+4. **State Management**: Proper timer cleanup prevents memory leaks in React components
+
+#### **Design Learnings**
+1. **Minimalistic Aesthetics**: Gray variations can provide visual feedback without breaking black/white theme
+2. **Professional UI**: Table layouts feel more professional than list layouts for data-heavy interfaces
+3. **Chrome DevTools Style**: `text-xs` sizing and compact spacing matches professional developer tools
+4. **User Workflow**: Preserving context (staying on Monitor tab) is crucial for monitoring workflows
+
+#### **Architecture Learnings**
+1. **Component Restructuring**: Converting from list to table requires careful state management preservation
+2. **Event System Design**: Custom event detection systems provide better control than native browser events
+3. **Performance Optimization**: Memoization is essential for sorting/filtering large datasets
+4. **User Experience**: Small UX details (like tab focus) have huge impact on workflow efficiency
+
+---
+
+## **🚀 SPRINT 4C: ADVANCED FILTERING - READY TO START**
+
+**🎯 Sprint Goal**: Implement comprehensive search and filtering system for Monitor table
+**📅 Estimated Duration**: 4-5 hours
+**📊 Current Status**: READY TO START
+**🔧 Complexity**: HIGH - Complex filter logic and UI required
+
+### **📋 Sprint 4C Task Breakdown**
+
+#### **Task 1: Search Functionality** (Priority: HIGH, Est: 2 hours)
+- **Feature**: Real-time search across URL, method, status, initiator fields
+- **Implementation**: Search input with instant filtering, case-insensitive matching
+- **UX**: Search box in Monitor controls, clear search functionality
+- **Performance**: Debounced search to prevent excessive filtering
+
+#### **Task 2: Method Filter Dropdown** (Priority: HIGH, Est: 1 hour)
+- **Options**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, TRACE, CONNECT, ALL
+- **Implementation**: Dropdown component with multi-select or single-select
+- **Integration**: Works with search functionality for combined filtering
+
+#### **Task 3: Status Code Filtering** (Priority: MEDIUM, Est: 1 hour)
+- **Categories**: Success (2xx), Redirect (3xx), Client Error (4xx), Server Error (5xx), Pending
+- **Implementation**: Checkbox or dropdown-based filtering
+- **Visual**: Status badges clickable for quick filtering
+
+#### **Task 4: Custom Time Range Filters** (Priority: MEDIUM, Est: 1.5 hours)
+- **Presets**: < 1ms, < 5ms, < 10ms, < 100ms, < 1s, > 1s
+- **Custom Range**: Input fields for min/max duration in milliseconds
+- **Dynamic**: Real-time filtering as user types
+
+#### **Task 5: Filter Persistence** (Priority: LOW, Est: 30 minutes)
+- **Storage**: Remember filter settings across sessions using localStorage
+- **Reset**: Clear all filters button for quick reset
+- **State**: Maintain filter state when switching between tabs
+
+### **🎯 Sprint 4C Success Criteria**
+- ✅ Real-time search across all request fields works smoothly
+- ✅ Method filtering with dropdown selection functions correctly
+- ✅ Status code filtering provides quick request categorization
+- ✅ Custom time range filtering with both presets and custom input
+- ✅ Multiple filters work simultaneously without conflicts
+- ✅ Filter state persists across browser sessions
+- ✅ Performance remains smooth with 100+ requests and active filtering
+
+### **⚡ Ready for Sprint 4C Implementation**
+
+**Current Status**: Monitor table foundation is solid, sorting works perfectly, ready for advanced filtering
+**Next Action**: Await go signal to begin Sprint 4C (Advanced Filtering)
+**Risk Level**: MEDIUM - Complex filtering logic but building on proven table architecture

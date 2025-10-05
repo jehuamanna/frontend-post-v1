@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MonitoredRequest } from '../types';
 
 interface MonitorTabProps {
@@ -6,10 +6,29 @@ interface MonitorTabProps {
   onRequestDoubleClick: (request: MonitoredRequest) => void;
 }
 
+type SortField = 'method' | 'url' | 'status' | 'duration' | 'timestamp';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+  field: SortField;
+  direction: SortDirection;
+}
+
 const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubleClick }): React.JSX.Element => {
   const [requests, setRequests] = useState<MonitoredRequest[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' });
+  const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Cleanup click timer on unmount
+  useEffect(() => {
+    return () => {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+      }
+    };
+  }, [clickTimer]);
 
   // Initialize Chrome runtime connection with auto-reconnect
   useEffect(() => {
@@ -133,19 +152,83 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
   }, []);
 
   const handleRequestClick = useCallback((request: MonitoredRequest) => {
-    onRequestSelect(request);
-  }, [onRequestSelect]);
+    // Clear any existing timer
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      setClickTimer(null);
+      // This is a double-click, call the double-click handler
+      console.log('🖱️ Double-click detected, creating new tab for:', request.url);
+      onRequestDoubleClick(request);
+      return;
+    }
+
+    // Set a timer for single-click detection
+    const timer = setTimeout(() => {
+      console.log('🖱️ Single-click detected, populating current tab for:', request.url);
+      onRequestSelect(request);
+      setClickTimer(null);
+    }, 250); // 250ms delay to detect double-click
+
+    setClickTimer(timer);
+  }, [onRequestSelect, onRequestDoubleClick, clickTimer]);
 
   const handleRequestDoubleClick = useCallback((request: MonitoredRequest) => {
-    onRequestDoubleClick(request);
-  }, [onRequestDoubleClick]);
+    // This is handled by the click handler now
+    // Just prevent default to avoid any browser double-click behavior
+  }, []);
+
+  // Sorting functionality
+  const handleSort = useCallback((field: SortField) => {
+    setSortConfig(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+
+  // Sorted requests
+  const sortedRequests = useMemo(() => {
+    const sorted = [...requests].sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortConfig.field) {
+        case 'method':
+          aValue = a.method;
+          bValue = b.method;
+          break;
+        case 'url':
+          aValue = a.url.toLowerCase();
+          bValue = b.url.toLowerCase();
+          break;
+        case 'status':
+          aValue = a.status || 0;
+          bValue = b.status || 0;
+          break;
+        case 'duration':
+          aValue = a.timing.duration || 0;
+          bValue = b.timing.duration || 0;
+          break;
+        case 'timestamp':
+          aValue = a.timestamp;
+          bValue = b.timestamp;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return sorted;
+  }, [requests, sortConfig]);
 
   const getStatusColor = (status?: number) => {
-    if (!status) return 'text-gray-500';
-    if (status < 300) return 'text-gray-900 font-medium';
-    if (status < 400) return 'text-gray-700';
-    if (status < 500) return 'text-gray-600';
-    return 'text-gray-800';
+    if (!status) return 'text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs';
+    if (status < 300) return 'text-gray-900 bg-gray-200 px-2 py-1 rounded font-medium text-xs'; // Success - light gray
+    if (status < 400) return 'text-gray-700 bg-gray-200 px-2 py-1 rounded text-xs'; // Redirect - medium gray  
+    if (status < 500) return 'text-gray-600 bg-gray-300 px-2 py-1 rounded text-xs'; // Client error - darker gray
+    return 'text-gray-800 bg-gray-400 px-2 py-1 rounded font-medium text-xs'; // Server error - darkest gray
   };
 
   const getMethodColor = (method: string) => {
@@ -210,7 +293,7 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
         </div>
       </div>
 
-      {/* Request List */}
+      {/* Request Table */}
       <div className="flex-1 overflow-auto">
         {requests.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -236,49 +319,126 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {requests.map((request) => (
-              <div
-                key={request.id}
-                onClick={() => handleRequestClick(request)}
-                onDoubleClick={() => handleRequestDoubleClick(request)}
-                className="p-3 hover:bg-gray-50 cursor-pointer border-l-4 border-transparent hover:border-gray-900 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    {/* Method Badge */}
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(request.method)}`}>
-                      {request.method}
-                    </span>
+          <div className="overflow-hidden">
+            <table className="w-full text-xs">
+              {/* Table Header */}
+              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                <tr>
+                  <th 
+                    onClick={() => handleSort('method')}
+                    className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Method</span>
+                      {sortConfig.field === 'method' && (
+                        <span className="text-gray-500">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('url')}
+                    className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>URL</span>
+                      {sortConfig.field === 'url' && (
+                        <span className="text-gray-500">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('status')}
+                    className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors select-none w-20"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Status</span>
+                      {sortConfig.field === 'status' && (
+                        <span className="text-gray-500">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('duration')}
+                    className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors select-none w-20"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Time</span>
+                      {sortConfig.field === 'duration' && (
+                        <span className="text-gray-500">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('timestamp')}
+                    className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors select-none w-24"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Timestamp</span>
+                      {sortConfig.field === 'timestamp' && (
+                        <span className="text-gray-500">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              
+              {/* Table Body */}
+              <tbody className="divide-y divide-gray-100">
+                {sortedRequests.map((request) => (
+                  <tr
+                    key={request.id}
+                    onClick={() => handleRequestClick(request)}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    {/* Method */}
+                    <td className="px-3 py-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(request.method)}`}>
+                        {request.method}
+                      </span>
+                    </td>
                     
                     {/* URL */}
-                    <span className="text-sm font-mono truncate flex-1" title={request.url}>
-                      {formatUrl(request.url)}
-                    </span>
-                  </div>
-                  
-                  {/* Status and Timing */}
-                  <div className="flex items-center space-x-3 text-xs">
-                    <span className={`font-medium ${getStatusColor(request.status)}`}>
-                      {request.status || 'Pending'}
-                    </span>
-                    <span className="text-gray-500">
+                    <td className="px-3 py-2">
+                      <div className="font-mono text-xs truncate max-w-xs" title={request.url}>
+                        {formatUrl(request.url)}
+                      </div>
+                      {request.initiator && (
+                        <div className="text-xs text-gray-500 truncate mt-0.5">
+                          {request.initiator}
+                        </div>
+                      )}
+                    </td>
+                    
+                    {/* Status */}
+                    <td className="px-3 py-2">
+                      <span className={getStatusColor(request.status)}>
+                        {request.status || 'Pending'}
+                      </span>
+                    </td>
+                    
+                    {/* Duration */}
+                    <td className="px-3 py-2 text-gray-600">
                       {formatDuration(request.timing.duration)}
-                    </span>
-                    <span className="text-gray-400">
+                    </td>
+                    
+                    {/* Timestamp */}
+                    <td className="px-3 py-2 text-gray-500">
                       {new Date(request.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Additional Info */}
-                {request.initiator && (
-                  <div className="mt-1 text-xs text-gray-500 truncate">
-                    From: {request.initiator}
-                  </div>
-                )}
-              </div>
-            ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

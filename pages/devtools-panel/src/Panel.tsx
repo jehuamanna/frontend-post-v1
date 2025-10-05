@@ -253,8 +253,8 @@ const Panel = () => {
       updateResponse(newTabId, httpResponse);
     }
 
-    // Switch to Request tab to show the populated data
-    setActiveContentTab('request');
+    // Note: Don't switch tabs on double-click - let user stay on Monitor tab to continue monitoring
+    // setActiveContentTab('request'); // Removed to keep focus on Monitor tab
   }, [createTab, updateResponse]);
 
   const handleNewTab = useCallback(() => {
