@@ -182,8 +182,25 @@ const Panel = () => {
     // Update the current tab with the monitored request data
     updateRequest(activeTabId, httpRequest);
 
-    // Clear response data on single click
-    updateResponse(activeTabId, null);
+    // Populate response data if available from monitored request
+    if (monitoredRequest.status && monitoredRequest.responseHeaders) {
+      const httpResponse: HttpResponse = {
+        status: monitoredRequest.status,
+        statusText: `${monitoredRequest.status}`,
+        headers: monitoredRequest.responseHeaders,
+        body: monitoredRequest.responseBody || '',
+        size: monitoredRequest.size || 0,
+        time: monitoredRequest.timing.duration || 0,
+        url: monitoredRequest.url,
+        ok: monitoredRequest.status >= 200 && monitoredRequest.status < 300,
+        cookies: [], // TODO: Extract from responseHeaders if needed
+        duration: monitoredRequest.timing.duration
+      };
+      updateResponse(activeTabId, httpResponse);
+    } else {
+      // Only clear response if no response data available
+      updateResponse(activeTabId, null);
+    }
 
     // Update tab name based on the request
     try {

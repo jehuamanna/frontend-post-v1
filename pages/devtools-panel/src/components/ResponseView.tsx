@@ -4,6 +4,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { EditorView } from '@codemirror/view';
 import { HttpResponse } from '../types';
 import { getResponseTabOrder, updateResponseTabOrder, type TabOrder } from '../utils/tabPersistence';
+import { formatBody } from '../utils/bodyFormatter';
 
 // CodeMirror theme for response viewer
 const responseViewerTheme = EditorView.theme({
@@ -288,74 +289,9 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
     }
   };
 
+  // Use shared formatting utility
   const formatResponseBody = (body: string, contentType?: string) => {
-    if (!body) return '';
-
-    try {
-      // Handle JSON content
-      if (contentType?.includes('application/json') || contentType?.includes('text/json')) {
-        const parsed = JSON.parse(body);
-        return JSON.stringify(parsed, null, 2);
-      }
-
-      // Handle HTML content
-      if (contentType?.includes('text/html') || contentType?.includes('application/xhtml')) {
-        // Enhanced HTML formatting with proper indentation
-        let formatted = body
-          .replace(/></g, '>\n<')
-          .replace(/^\s+|\s+$/g, '');
-
-        // List of void elements that don't have closing tags
-        const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-
-        const lines = formatted.split('\n');
-        let indentLevel = 0;
-        const indentedLines = lines.map(line => {
-          const trimmed = line.trim();
-          if (!trimmed) return '';
-
-          // Decrease indent for closing tags
-          if (trimmed.startsWith('</')) {
-            indentLevel = Math.max(0, indentLevel - 1);
-          }
-
-          const indentedLine = '  '.repeat(indentLevel) + trimmed;
-
-          // Increase indent for opening tags (but not self-closing or void elements)
-          if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.startsWith('<!')) {
-            // Extract tag name
-            const tagMatch = trimmed.match(/<(\w+)/);
-            const tagName = tagMatch?.[1]?.toLowerCase();
-
-            // Only increase indent if it's not a void element
-            if (tagName && !voidElements.includes(tagName)) {
-              indentLevel++;
-            }
-          }
-
-          return indentedLine;
-        });
-
-        return indentedLines.filter(line => line.length > 0).join('\n');
-      }
-
-      // Handle XML content
-      if (contentType?.includes('application/xml') || contentType?.includes('text/xml')) {
-        return body
-          .replace(/></g, '>\n<')
-          .replace(/^\s+|\s+$/g, '')
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .join('\n');
-      }
-
-    } catch (error) {
-      console.warn('Failed to format response body:', error);
-      // If formatting fails, return original body
-    }
-
-    return body;
+    return formatBody(body, contentType);
   };
 
   return (
@@ -508,8 +444,7 @@ export const ResponseView: React.FC<ResponseViewProps> = ({
                         closeBrackets: false,
                         autocompletion: false,
                         highlightSelectionMatches: false,
-                        searchKeymap: true,
-                        lineWrapping: false
+                        searchKeymap: true
                       }}
                       className="h-full"
                     />

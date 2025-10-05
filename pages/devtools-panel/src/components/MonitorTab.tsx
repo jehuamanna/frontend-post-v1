@@ -32,6 +32,15 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' });
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [fullCaptureMode, setFullCaptureMode] = useState(() => {
+    // Load preference from localStorage
+    try {
+      const saved = localStorage.getItem('monitor-full-capture');
+      return saved === 'true';
+    } catch {
+      return false; // Default to standard mode (no debugger)
+    }
+  });
   const [filterConfig, setFilterConfig] = useState<FilterConfig>(() => {
     try {
       const saved = localStorage.getItem('monitor-filters');
@@ -69,6 +78,38 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
     }
   }, [filterConfig]);
 
+  // Save full capture mode preference
+  useEffect(() => {
+    try {
+      localStorage.setItem('monitor-full-capture', String(fullCaptureMode));
+    } catch (error) {
+      console.warn('Failed to save capture mode preference:', error);
+    }
+  }, [fullCaptureMode]);
+
+
+  // Restart monitoring when capture mode changes
+  useEffect(() => {
+    if (port && isMonitoring) {
+      getCurrentTabId().then(tabId => {
+        // Stop current monitoring
+        port.postMessage({ 
+          type: 'STOP_MONITORING', 
+          tabId 
+        });
+        
+        // Restart with new mode
+        setTimeout(() => {
+          port.postMessage({ 
+            type: 'START_MONITORING', 
+            tabId,
+            fullCapture: fullCaptureMode
+          });
+          console.log(`🔄 Restarted monitoring in ${fullCaptureMode ? 'Full' : 'Standard'} mode`);
+        }, 100);
+      });
+    }
+  }, [fullCaptureMode]); // Only run when capture mode changes
 
   // Initialize Chrome runtime connection with auto-reconnect
   useEffect(() => {
@@ -124,12 +165,13 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
               tabId 
             });
             
-            // Then start monitoring automatically
+            // Then start monitoring automatically with user's preferred mode
             runtimePort.postMessage({ 
               type: 'START_MONITORING', 
-              tabId 
+              tabId,
+              fullCapture: fullCaptureMode
             });
-            console.log('🚀 Auto-started monitoring for tab:', tabId);
+            console.log(`🚀 Auto-started monitoring for tab ${tabId} (${fullCaptureMode ? 'Full' : 'Standard'} mode)`);
           } catch (error) {
             console.warn('Failed to auto-start monitoring:', error);
           }
@@ -170,14 +212,15 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
       const tabId = await getCurrentTabId();
       port.postMessage({ 
         type: 'START_MONITORING', 
-        tabId 
+        tabId,
+        fullCapture: fullCaptureMode
       });
       setIsMonitoring(true);
-      console.log('Started monitoring tab:', tabId);
+      console.log(`Started monitoring tab ${tabId} (${fullCaptureMode ? 'Full' : 'Standard'} mode)`);
     } catch (error) {
       console.error('Failed to start monitoring:', error);
     }
-  }, [port, getCurrentTabId]);
+  }, [port, getCurrentTabId, fullCaptureMode]);
 
   const handleStopMonitoring = useCallback(async () => {
     if (!port) return;
@@ -418,12 +461,41 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+
+            {/* Full Capture Mode Toggle */}
+            <div className="flex items-center space-x-2 ml-4 pl-4 border-l border-gray-300">
+              <label className="flex items-center space-x-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={fullCaptureMode}
+                  onChange={(e) => setFullCaptureMode(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900 focus:ring-1 focus:ring-gray-400 cursor-pointer"
+                  title="Enable full response body capture (uses Chrome Debugger API)"
+                />
+                <span className="text-xs text-gray-700 group-hover:text-gray-900 select-none">
+                  Full Capture
+                </span>
+                <span className="text-xs text-gray-400 group-hover:text-gray-600" title="Captures complete response bodies using Chrome Debugger API. Shows yellow debug bar when enabled.">
+                  ⓘ
+                </span>
+              </label>
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Status indicator - only when not monitoring */}
-            {!isMonitoring && !port && (
+            {/* Connection status */}
+            {!port && (
               <span className="text-xs text-gray-500">Connecting...</span>
+            )}
+            {/* Monitoring status */}
+            {port && (
+              <span className={`text-xs px-2 py-0.5 rounded ${
+                isMonitoring 
+                  ? 'text-gray-700 bg-gray-100 border border-gray-300' 
+                  : 'text-gray-500 bg-gray-50 border border-gray-200'
+              }`}>
+                {isMonitoring ? (fullCaptureMode ? 'Full Mode Active' : 'Standard Mode Active') : 'Monitoring Stopped'}
+              </span>
             )}
           </div>
         </div>

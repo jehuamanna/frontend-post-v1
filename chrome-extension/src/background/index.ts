@@ -50,11 +50,35 @@ interface MonitoredRequest {
   initiator?: string;
 }
 
+// Debugger API Network Event Types
+interface DebuggerRequest {
+  requestId: string;
+  request: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    postData?: string;
+  };
+  timestamp: number;
+  initiator?: any;
+}
+
+interface DebuggerResponse {
+  requestId: string;
+  response: {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+  };
+  timestamp: number;
+}
+
 interface MonitorMessage {
   type: 'START_MONITORING' | 'STOP_MONITORING' | 'REQUEST_CAPTURED' | 'REQUEST_COMPLETED' | 'GET_MONITORING_STATUS' | 'MONITORING_STATUS';
   tabId?: number;
   request?: MonitoredRequest;
   isMonitoring?: boolean;
+  fullCapture?: boolean; // Enable full response body capture via Debugger API
 }
 
 // Store for tracking pending requests
@@ -261,11 +285,17 @@ class NetworkMonitor {
       ["requestHeaders"]
     );
 
+    // Monitor response headers (must use onHeadersReceived, not onCompleted)
+    chrome.webRequest.onHeadersReceived.addListener(
+      this.handleResponseHeaders.bind(this),
+      { urls: ["<all_urls>"] },
+      ["responseHeaders"]
+    );
+
     // Monitor response completion
     chrome.webRequest.onCompleted.addListener(
       this.handleRequestComplete.bind(this),
-      { urls: ["<all_urls>"] },
-      ["responseHeaders"]
+      { urls: ["<all_urls>"] }
     );
 
     // Monitor request errors
@@ -375,6 +405,42 @@ class NetworkMonitor {
     this.capturedRequests.set(details.requestId, request);
   }
 
+  private handleResponseHeaders(details: chrome.webRequest.WebResponseHeadersDetails) {
+    const request = this.capturedRequests.get(details.requestId);
+    if (!request) return;
+
+    // Extract response headers
+    const responseHeaders: Record<string, string> = {};
+    if (details.responseHeaders) {
+      details.responseHeaders.forEach(header => {
+        if (header.name && header.value) {
+          responseHeaders[header.name.toLowerCase()] = header.value;
+        }
+      });
+    }
+
+    request.responseHeaders = responseHeaders;
+    request.status = details.statusCode;
+    
+    // Note: Response body is NOT available in Chrome's webRequest API
+    // This is a known Chrome limitation - webRequest API only provides headers and metadata
+    // To capture response bodies, we would need:
+    // 1. Chrome Debugger API (requires debugger permission, complex setup)
+    // 2. Network interception at service worker level (not applicable for DevTools)
+    // 3. Re-fetching the request (could have side effects, not recommended)
+    // 
+    // For now, monitored requests will show:
+    // ✅ Request data (URL, method, headers, body)
+    // ✅ Response headers and status code
+    // ❌ Response body (limitation of Chrome webRequest API)
+    
+    request.responseBody = '[Response body not available - Chrome webRequest API limitation]';
+    
+    this.capturedRequests.set(details.requestId, request);
+    
+    console.log(`📥 Response headers captured: ${details.statusCode} ${request.method} ${request.url}`);
+  }
+
   private handleRequestComplete(details: chrome.webRequest.WebResponseDetails) {
     const request = this.capturedRequests.get(details.requestId);
     if (!request) return;
@@ -467,9 +533,202 @@ class NetworkMonitor {
   }
 }
 
-// Initialize Network Monitor
+// Debugger-based Network Monitor for capturing full response bodies
+class DebuggerNetworkMonitor {
+  private attachedTabs = new Set<number>();
+  private capturedRequests = new Map<string, MonitoredRequest>();
+  private connectedPorts = new Set<chrome.runtime.Port>();
+
+  init() {
+    // Listen for debugger events
+    chrome.debugger.onEvent.addListener(this.handleDebuggerEvent.bind(this));
+    chrome.debugger.onDetach.addListener(this.handleDebuggerDetach.bind(this));
+    console.log('🐛 Debugger Network Monitor initialized');
+  }
+
+  async attachToTab(tabId: number) {
+    if (this.attachedTabs.has(tabId)) {
+      console.log(`🐛 Already attached to tab ${tabId}`);
+      return;
+    }
+
+    try {
+      // Attach debugger with version 1.3 (supports Network domain)
+      await chrome.debugger.attach({ tabId }, '1.3');
+      
+      // Enable Network domain to capture network events
+      await chrome.debugger.sendCommand({ tabId }, 'Network.enable');
+      
+      this.attachedTabs.add(tabId);
+      console.log(`🐛 Debugger attached to tab ${tabId}`);
+    } catch (error) {
+      console.error(`Failed to attach debugger to tab ${tabId}:`, error);
+      throw error;
+    }
+  }
+
+  async detachFromTab(tabId: number) {
+    if (!this.attachedTabs.has(tabId)) {
+      return;
+    }
+
+    try {
+      await chrome.debugger.detach({ tabId });
+      this.attachedTabs.delete(tabId);
+      console.log(`🐛 Debugger detached from tab ${tabId}`);
+    } catch (error) {
+      console.warn(`Failed to detach debugger from tab ${tabId}:`, error);
+    }
+  }
+
+  private handleDebuggerEvent(source: chrome.debugger.Debuggee, method: string, params?: any) {
+    if (!source.tabId) return;
+
+    switch (method) {
+      case 'Network.requestWillBeSent':
+        this.handleRequestWillBeSent(source.tabId, params);
+        break;
+      case 'Network.responseReceived':
+        this.handleResponseReceived(source.tabId, params);
+        break;
+      case 'Network.loadingFinished':
+        this.handleLoadingFinished(source.tabId, params);
+        break;
+      case 'Network.loadingFailed':
+        this.handleLoadingFailed(source.tabId, params);
+        break;
+    }
+  }
+
+  private handleRequestWillBeSent(tabId: number, params: any) {
+    const { requestId, request, timestamp, initiator } = params;
+
+    const monitoredRequest: MonitoredRequest = {
+      id: requestId,
+      tabId,
+      method: request.method,
+      url: request.url,
+      headers: request.headers || {},
+      body: request.postData,
+      timestamp: timestamp * 1000, // Convert to milliseconds
+      timing: { startTime: timestamp * 1000 },
+      initiator: initiator?.type
+    };
+
+    this.capturedRequests.set(requestId, monitoredRequest);
+    this.notifyDevTools('REQUEST_CAPTURED', monitoredRequest);
+
+    console.log(`🐛 Request captured: ${request.method} ${request.url}`);
+  }
+
+  private handleResponseReceived(tabId: number, params: any) {
+    const { requestId, response, timestamp } = params;
+    const request = this.capturedRequests.get(requestId);
+    if (!request) return;
+
+    // Extract response headers
+    const responseHeaders: Record<string, string> = {};
+    if (response.headers) {
+      Object.entries(response.headers).forEach(([key, value]) => {
+        responseHeaders[key.toLowerCase()] = String(value);
+      });
+    }
+
+    request.status = response.status;
+    request.responseHeaders = responseHeaders;
+    request.timing.endTime = timestamp * 1000;
+    request.timing.duration = (timestamp * 1000) - request.timing.startTime;
+
+    this.capturedRequests.set(requestId, request);
+
+    console.log(`🐛 Response received: ${response.status} ${request.method} ${request.url}`);
+  }
+
+  private async handleLoadingFinished(tabId: number, params: any) {
+    const { requestId } = params;
+    const request = this.capturedRequests.get(requestId);
+    if (!request) return;
+
+    try {
+      // Get response body using Debugger API
+      const result = await chrome.debugger.sendCommand(
+        { tabId },
+        'Network.getResponseBody',
+        { requestId }
+      ) as { body?: string; base64Encoded?: boolean };
+
+      if (result && result.body) {
+        // Decode base64 if needed
+        request.responseBody = result.base64Encoded 
+          ? atob(result.body)
+          : result.body;
+      }
+
+      this.capturedRequests.set(requestId, request);
+      this.notifyDevTools('REQUEST_COMPLETED', request);
+
+      console.log(`🐛 Response body captured: ${request.method} ${request.url} (${request.responseBody?.length || 0} bytes)`);
+    } catch (error) {
+      console.warn(`Failed to get response body for ${request.url}:`, error);
+      // Still notify with what we have
+      request.responseBody = '[Failed to capture response body]';
+      this.notifyDevTools('REQUEST_COMPLETED', request);
+    }
+  }
+
+  private handleLoadingFailed(tabId: number, params: any) {
+    const { requestId, errorText } = params;
+    const request = this.capturedRequests.get(requestId);
+    if (!request) return;
+
+    request.status = 0;
+    request.responseBody = `[Request failed: ${errorText}]`;
+
+    this.capturedRequests.set(requestId, request);
+    this.notifyDevTools('REQUEST_COMPLETED', request);
+
+    console.log(`🐛 Request failed: ${request.method} ${request.url} - ${errorText}`);
+  }
+
+  private handleDebuggerDetach(source: chrome.debugger.Debuggee, reason: string) {
+    if (source.tabId) {
+      this.attachedTabs.delete(source.tabId);
+      console.log(`🐛 Debugger detached from tab ${source.tabId}: ${reason}`);
+    }
+  }
+
+  private notifyDevTools(type: MonitorMessage['type'], request: MonitoredRequest) {
+    const message: MonitorMessage = { type, request };
+    
+    this.connectedPorts.forEach(port => {
+      try {
+        port.postMessage(message);
+      } catch (error) {
+        console.warn('Failed to send message to DevTools:', error);
+        this.connectedPorts.delete(port);
+      }
+    });
+  }
+
+  addPort(port: chrome.runtime.Port) {
+    this.connectedPorts.add(port);
+  }
+
+  removePort(port: chrome.runtime.Port) {
+    this.connectedPorts.delete(port);
+  }
+
+  isAttached(tabId: number): boolean {
+    return this.attachedTabs.has(tabId);
+  }
+}
+
+// Initialize both monitors
 const networkMonitor = new NetworkMonitor();
 networkMonitor.init();
+
+const debuggerMonitor = new DebuggerNetworkMonitor();
+debuggerMonitor.init();
 
 // Core fetch execution with Chrome Extension privileges
 const executeFetch = async (url: string, options: RequestInit): Promise<FetchResponse['result']> => {
@@ -545,10 +804,11 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'devtools-panel') {
     console.log('✅ DevTools panel connected successfully');
     
-    // Add port to network monitor
+    // Add port to both monitors
     networkMonitor.addPort(port);
+    debuggerMonitor.addPort(port);
     
-    port.onMessage.addListener((message: FetchRequest | MonitorMessage) => {
+    port.onMessage.addListener(async (message: FetchRequest | MonitorMessage) => {
       console.log('📨 Received message from DevTools:', message.type);
       
       if (message.type === 'EXECUTE_FETCH') {
@@ -558,17 +818,44 @@ chrome.runtime.onConnect.addListener((port) => {
       } else if (message.type === 'START_MONITORING') {
         const monitorMessage = message as MonitorMessage;
         if (monitorMessage.tabId) {
-          networkMonitor.startMonitoring(monitorMessage.tabId);
+          // Check if user wants full capture mode (Debugger API)
+          if (monitorMessage.fullCapture) {
+            // Use Debugger API for full response body capture
+            try {
+              await debuggerMonitor.attachToTab(monitorMessage.tabId);
+              console.log(`🐛 Started FULL CAPTURE monitoring for tab ${monitorMessage.tabId} (Debugger API)`);
+            } catch (error) {
+              console.error('Failed to attach debugger, falling back to webRequest:', error);
+              // Fallback to webRequest-based monitoring
+              networkMonitor.startMonitoring(monitorMessage.tabId);
+            }
+          } else {
+            // Use standard webRequest API (headers/status only, no response body)
+            networkMonitor.startMonitoring(monitorMessage.tabId);
+            console.log(`📡 Started STANDARD monitoring for tab ${monitorMessage.tabId} (webRequest API)`);
+          }
         }
       } else if (message.type === 'STOP_MONITORING') {
         const monitorMessage = message as MonitorMessage;
         if (monitorMessage.tabId) {
+          // Detach debugger
+          await debuggerMonitor.detachFromTab(monitorMessage.tabId);
           networkMonitor.stopMonitoring(monitorMessage.tabId);
         }
       } else if (message.type === 'GET_MONITORING_STATUS') {
         const monitorMessage = message as MonitorMessage;
         if (monitorMessage.tabId) {
-          networkMonitor.sendMonitoringStatus(port, monitorMessage.tabId);
+          const isMonitoring = debuggerMonitor.isAttached(monitorMessage.tabId) || 
+                              networkMonitor.isTabBeingMonitored(monitorMessage.tabId);
+          try {
+            port.postMessage({
+              type: 'MONITORING_STATUS',
+              isMonitoring,
+              tabId: monitorMessage.tabId
+            });
+          } catch (error) {
+            console.warn('Failed to send monitoring status:', error);
+          }
         }
       } else {
         console.warn('⚠️ Unknown message type:', message.type);
@@ -579,8 +866,9 @@ chrome.runtime.onConnect.addListener((port) => {
       const error = chrome.runtime.lastError;
       console.log('🔌 DevTools panel disconnected:', error?.message || 'Clean disconnect');
       
-      // Remove port from network monitor
+      // Remove port from both monitors
       networkMonitor.removePort(port);
+      debuggerMonitor.removePort(port);
     });
   } else {
     console.warn('⚠️ Unknown port connection:', port.name);

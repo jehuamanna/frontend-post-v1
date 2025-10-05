@@ -4,6 +4,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { EditorView } from '@codemirror/view';
 import { HttpRequest, HttpMethod } from '../types';
 import { getRequestTabOrder, updateRequestTabOrder, type TabOrder } from '../utils/tabPersistence';
+import { formatBody, detectContentType } from '../utils/bodyFormatter';
 
 // CodeMirror theme for body editor
 const bodyEditorTheme = EditorView.theme({
@@ -130,6 +131,29 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     }
     return undefined;
   }, [copyFeedback]);
+
+  // Format body function
+  const handleFormatBody = useCallback(() => {
+    if (!request.body) {
+      setCopyFeedback('No content to format');
+      return;
+    }
+
+    try {
+      const contentType = detectContentType(request.body);
+      const formatted = formatBody(request.body, contentType);
+      
+      if (formatted !== request.body) {
+        onRequestChange({ body: formatted });
+        setCopyFeedback('Body formatted successfully!');
+      } else {
+        setCopyFeedback('Content is already formatted');
+      }
+    } catch (error) {
+      setCopyFeedback('Failed to format content');
+      console.warn('Format error:', error);
+    }
+  }, [request.body, onRequestChange]);
 
   // Sync headers with request changes
   useEffect(() => {
@@ -568,6 +592,15 @@ export const RequestForm: React.FC<RequestFormProps> = ({
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-900">Body</h3>
+              {request.body && (
+                <button
+                  onClick={handleFormatBody}
+                  className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded border border-gray-300 transition-colors"
+                  title="Format JSON/HTML/XML content"
+                >
+                  Format
+                </button>
+              )}
             </div>
             <div className="flex-1 min-h-0 border border-gray-300 rounded relative overflow-hidden">
               <CodeMirror
