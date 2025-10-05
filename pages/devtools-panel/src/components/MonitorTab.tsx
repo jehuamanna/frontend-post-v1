@@ -30,6 +30,10 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
             setRequests(prev => prev.map(req => 
               req.id === message.request.id ? message.request : req
             ));
+          } else if (message.type === 'MONITORING_STATUS') {
+            // Sync monitoring state with background script
+            setIsMonitoring(message.isMonitoring);
+            console.log('📡 Synced monitoring state:', message.isMonitoring);
           }
         });
 
@@ -50,6 +54,19 @@ const MonitorTab: React.FC<MonitorTabProps> = ({ onRequestSelect, onRequestDoubl
         });
 
         console.log('✅ Successfully connected to background script');
+        
+        // Request current monitoring status to sync UI state
+        setTimeout(async () => {
+          try {
+            const tabId = await getCurrentTabId();
+            runtimePort.postMessage({ 
+              type: 'GET_MONITORING_STATUS', 
+              tabId 
+            });
+          } catch (error) {
+            console.warn('Failed to request monitoring status:', error);
+          }
+        }, 100); // Small delay to ensure connection is fully established
       } catch (error) {
         console.error('Failed to connect to background script:', error);
         // Retry connection after 5 seconds

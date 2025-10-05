@@ -51,9 +51,10 @@ interface MonitoredRequest {
 }
 
 interface MonitorMessage {
-  type: 'START_MONITORING' | 'STOP_MONITORING' | 'REQUEST_CAPTURED' | 'REQUEST_COMPLETED';
+  type: 'START_MONITORING' | 'STOP_MONITORING' | 'REQUEST_CAPTURED' | 'REQUEST_COMPLETED' | 'GET_MONITORING_STATUS' | 'MONITORING_STATUS';
   tabId?: number;
   request?: MonitoredRequest;
+  isMonitoring?: boolean;
 }
 
 // Store for tracking pending requests
@@ -438,6 +439,24 @@ class NetworkMonitor {
   getRequest(requestId: string): MonitoredRequest | undefined {
     return this.capturedRequests.get(requestId);
   }
+
+  isTabBeingMonitored(tabId: number): boolean {
+    return this.monitoredTabIds.has(tabId);
+  }
+
+  sendMonitoringStatus(port: chrome.runtime.Port, tabId: number) {
+    const isMonitoring = this.isTabBeingMonitored(tabId);
+    try {
+      port.postMessage({
+        type: 'MONITORING_STATUS',
+        isMonitoring,
+        tabId
+      });
+      console.log(`📡 Sent monitoring status for tab ${tabId}: ${isMonitoring}`);
+    } catch (error) {
+      console.warn('Failed to send monitoring status:', error);
+    }
+  }
 }
 
 // Initialize Network Monitor
@@ -537,6 +556,11 @@ chrome.runtime.onConnect.addListener((port) => {
         const monitorMessage = message as MonitorMessage;
         if (monitorMessage.tabId) {
           networkMonitor.stopMonitoring(monitorMessage.tabId);
+        }
+      } else if (message.type === 'GET_MONITORING_STATUS') {
+        const monitorMessage = message as MonitorMessage;
+        if (monitorMessage.tabId) {
+          networkMonitor.sendMonitoringStatus(port, monitorMessage.tabId);
         }
       } else {
         console.warn('⚠️ Unknown message type:', message.type);
